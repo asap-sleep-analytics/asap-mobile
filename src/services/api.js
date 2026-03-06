@@ -75,6 +75,32 @@ export async function startSleepSession(payload = {}) {
   return data;
 }
 
+export async function uploadSleepFragment({ sessionId, fileUri, fragmentIndex, durationSeconds, startedAt }) {
+  const formData = new FormData();
+  formData.append('fragmento', {
+    uri: fileUri,
+    name: `fragmento_${String(fragmentIndex).padStart(5, '0')}.m4a`,
+    type: 'audio/mp4',
+  });
+  formData.append('fragment_index', String(fragmentIndex));
+
+  if (durationSeconds !== undefined && durationSeconds !== null) {
+    formData.append('duration_seconds', String(durationSeconds));
+  }
+
+  if (startedAt) {
+    formData.append('started_at', startedAt);
+  }
+
+  const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/fragmento`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 25000,
+  });
+  return data;
+}
+
 export async function finishSleepSession(sessionId, payload = {}) {
   const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/finalizar`, payload);
   return data;
@@ -84,6 +110,18 @@ export async function listSleepSessions(limit = 20) {
   const { data } = await api.get('/api/sleep/sesiones', {
     params: { limit },
   });
+  return data;
+}
+
+export async function listSleepDetections(sessionId, limit = 720) {
+  const { data } = await api.get(`/api/sleep/sesiones/${sessionId}/detecciones`, {
+    params: { limit },
+  });
+  return data;
+}
+
+export async function submitSleepFeedback(sessionId, payload) {
+  const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/feedback`, payload);
   return data;
 }
 

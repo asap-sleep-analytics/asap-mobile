@@ -1,50 +1,232 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useContext } from 'react';
+import { Manrope_400Regular, Manrope_500Medium, Manrope_700Bold, useFonts as useManropeFonts } from '@expo-google-fonts/manrope';
+import {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_700Bold,
+  useFonts as useSpaceGroteskFonts,
+} from '@expo-google-fonts/space-grotesk';
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { AppProvider } from './src/context/AppContext';
-import AnalyzeScreen from './src/screens/AnalyzeScreen';
-import AuthScreen from './src/screens/AuthScreen';
-import DashboardScreen from './src/screens/DashboardScreen';
-import HomeScreen from './src/screens/HomeScreen';
+import { AppContext, AppProvider } from './src/context/AppContext';
+import AuthScreen from './src/features/auth/screens/AuthScreen';
+import DashboardHomeScreen from './src/features/dashboard/screens/DashboardHomeScreen';
+import HistorySessionsScreen from './src/features/history/screens/HistorySessionsScreen';
+import MonitorActiveScreen from './src/features/monitor/screens/MonitorActiveScreen';
+import MonitorControlScreen from './src/features/monitor/screens/MonitorControlScreen';
+import ProfileHomeScreen from './src/features/profile/screens/ProfileHomeScreen';
+import { fonts, palette } from './src/theme/tokens';
 
-const Stack = createStackNavigator();
+const AuthStack = createStackNavigator();
+const DashboardStack = createStackNavigator();
+const MonitorStack = createStackNavigator();
+const HistoryStack = createStackNavigator();
+const ProfileStack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+const sharedStackOptions = {
+  headerStyle: {
+    backgroundColor: palette.obsidian,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  headerTintColor: palette.textPrimary,
+  headerTitleStyle: {
+    fontFamily: fonts.headingMedium,
+    letterSpacing: 0.6,
+  },
+  cardStyle: {
+    backgroundColor: palette.obsidian,
+  },
+};
+
+function AuthStackNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="AuthScreen" component={AuthScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+function DashboardStackNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={sharedStackOptions}>
+      <DashboardStack.Screen
+        name="DashboardHome"
+        component={DashboardHomeScreen}
+        options={{ title: 'Dashboard' }}
+      />
+    </DashboardStack.Navigator>
+  );
+}
+
+function MonitorStackNavigator() {
+  return (
+    <MonitorStack.Navigator screenOptions={sharedStackOptions}>
+      <MonitorStack.Screen
+        name="MonitorCenter"
+        component={MonitorControlScreen}
+        options={{ title: 'Monitor' }}
+      />
+      <MonitorStack.Screen
+        name="MonitorActive"
+        component={MonitorActiveScreen}
+        options={{ headerShown: false }}
+      />
+    </MonitorStack.Navigator>
+  );
+}
+
+function HistoryStackNavigator() {
+  return (
+    <HistoryStack.Navigator screenOptions={sharedStackOptions}>
+      <HistoryStack.Screen
+        name="HistoryHome"
+        component={HistorySessionsScreen}
+        options={{ title: 'Historial' }}
+      />
+    </HistoryStack.Navigator>
+  );
+}
+
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={sharedStackOptions}>
+      <ProfileStack.Screen
+        name="ProfileHome"
+        component={ProfileHomeScreen}
+        options={{ title: 'Perfil' }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
+
+function AppTabsNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => {
+        const focusedIcons = {
+          DashboardTab: 'grid',
+          MonitorTab: 'moon',
+          HistoryTab: 'time',
+          ProfileTab: 'person',
+        };
+
+        const outlineIcons = {
+          DashboardTab: 'grid-outline',
+          MonitorTab: 'moon-outline',
+          HistoryTab: 'time-outline',
+          ProfileTab: 'person-outline',
+        };
+
+        return {
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarActiveTintColor: palette.mint,
+          tabBarInactiveTintColor: palette.textMuted,
+          tabBarStyle: {
+            backgroundColor: palette.obsidian,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(255,255,255,0.08)',
+            height: 66,
+            paddingTop: 8,
+            paddingBottom: 8,
+          },
+          tabBarIcon: ({ focused, color, size }) => {
+            const dynamicIconName = focused
+              ? focusedIcons[route.name] || 'ellipse'
+              : outlineIcons[route.name] || 'ellipse-outline';
+
+            return <Ionicons name={dynamicIconName} color={color} size={Math.max(size, 22)} />;
+          },
+        };
+      }}
+    >
+      <Tab.Screen
+        name="DashboardTab"
+        component={DashboardStackNavigator}
+        options={{ title: 'Dashboard' }}
+      />
+      <Tab.Screen
+        name="MonitorTab"
+        component={MonitorStackNavigator}
+        options={{ title: 'Monitor' }}
+      />
+      <Tab.Screen
+        name="HistoryTab"
+        component={HistoryStackNavigator}
+        options={{ title: 'Historial' }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileStackNavigator}
+        options={{ title: 'Perfil' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+function AppNavigationGate() {
+  const { authLoading, isAuthenticated } = useContext(AppContext);
+
+  if (authLoading) {
+    return (
+      <View style={styles.loaderWrap}>
+        <ActivityIndicator color={palette.mint} size="large" />
+        <Text style={styles.loaderText}>Restaurando sesion segura...</Text>
+      </View>
+    );
+  }
+
+  return <NavigationContainer>{isAuthenticated ? <AppTabsNavigator /> : <AuthStackNavigator />}</NavigationContainer>;
+}
 
 export default function App() {
+  const [manropeReady] = useManropeFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_700Bold,
+  });
+
+  const [spaceReady] = useSpaceGroteskFonts({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_700Bold,
+  });
+
+  if (!manropeReady || !spaceReady) {
+    return (
+      <View style={styles.loaderWrap}>
+        <ActivityIndicator color={palette.mint} size="large" />
+        <Text style={styles.loaderText}>Cargando experiencia A.S.A.P.</Text>
+      </View>
+    );
+  }
+
   return (
     <AppProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Home"
-          screenOptions={{
-            headerStyle: { backgroundColor: '#0B2545' },
-            headerTintColor: '#FFFFFF',
-            contentStyle: { backgroundColor: '#F4F7FB' },
-          }}
-        >
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{ title: 'A.S.A.P. Mobile' }}
-          />
-          <Stack.Screen
-            name="Auth"
-            component={AuthScreen}
-            options={{ title: 'Acceso' }}
-          />
-          <Stack.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{ title: 'Dashboard' }}
-          />
-          <Stack.Screen
-            name="Analyze"
-            component={AnalyzeScreen}
-            options={{ title: 'Analyze Metadata' }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <StatusBar style="light" />
+      <AppNavigationGate />
     </AppProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.obsidian,
+  },
+  loaderText: {
+    marginTop: 12,
+    color: palette.textSecondary,
+    fontFamily: fonts.body,
+  },
+});

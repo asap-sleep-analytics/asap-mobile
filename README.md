@@ -6,6 +6,7 @@ React Native + Expo SDK 50 application for the A.S.A.P. ecosystem.
 
 - Registro y login del usuario final contra backend.
 - Monitoreo de sesion de sueno (iniciar/finalizar) y calibracion de ruido.
+- Grabacion en fragmentos de 30s con subida incremental al backend.
 - Consulta de dashboard con KPIs (`sleep_score`, eventos, continuidad).
 - Soporte del endpoint historico `POST /analyze` para pruebas de metadata.
 
@@ -36,6 +37,7 @@ Notes:
 - `GET /api/dashboard/resumen`
 - `POST /api/sleep/calibracion`
 - `POST /api/sleep/sesiones/iniciar`
+- `POST /api/sleep/sesiones/{session_id}/fragmento`
 - `POST /api/sleep/sesiones/{session_id}/finalizar`
 - `GET /api/sleep/sesiones`
 
