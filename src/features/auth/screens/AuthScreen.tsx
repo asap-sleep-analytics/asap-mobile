@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useContext, useState } from 'react';
 import {
 	ActivityIndicator,
@@ -18,8 +17,10 @@ import { getApiErrorMessage, loginUser, registerUser } from '../../../services/a
 import { fonts, palette } from '../../../theme/tokens';
 
 export default function AuthScreen() {
-	const { signIn } = useContext(AppContext);
-	const [mode, setMode] = useState('login');
+	const { signIn } = useContext(AppContext) as {
+		signIn: (token: string, userPayload: unknown, expiresInSeconds?: number) => Promise<void>;
+	};
+	const [mode, setMode] = useState<'login' | 'register'>('login');
 	const [nombreCompleto, setNombreCompleto] = useState('');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
@@ -56,7 +57,7 @@ export default function AuthScreen() {
 			const response = isRegisterMode ? await registerUser(payload) : await loginUser(payload);
 
 			await signIn(response.access_token, response.usuario, response.expires_in);
-		} catch (err) {
+		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, 'No fue posible autenticar al usuario.'));
 		} finally {
 			setLoading(false);
@@ -67,11 +68,11 @@ export default function AuthScreen() {
 		<AmbientBackdrop>
 			<ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 				<Text style={styles.badge}>Acceso de plataforma</Text>
-				<Text style={styles.title}>Registro y login funcional</Text>
+				<Text style={styles.title}>Iniciar sesión o registrarme</Text>
 				<Text style={styles.subtitle}>
 					{isRegisterMode
-						? 'Crea tu cuenta y habilita monitoreo con consentimiento informado.'
-						: 'Inicia sesion para consultar score, continuidad y eventos nocturnos.'}
+						? 'Crea tu cuenta para comenzar a monitorear tu sueño de forma simple y segura.'
+						: 'Inicia sesión para ver tu progreso nocturno y recomendaciones.'}
 				</Text>
 
 				<GlassCard>

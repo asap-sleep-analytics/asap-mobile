@@ -8,6 +8,8 @@ import { useKeepAwake } from 'expo-keep-awake';
 
 import { AppContext } from '../../../context/AppContext';
 import { finishSleepSession, uploadSleepFragment } from '../../../services/api';
+import { triggerSevereApneaAlert } from '../../../services/emergencyAlerts';
+import { getEmergencyAlertSettings } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
 
 const FRAGMENT_DURATION_MS = 30_000;
@@ -69,6 +71,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
   const { setActiveSleepSessionId } = useContext(AppContext);
   const sessionId = route?.params?.sessionId || '';
   const ambientNoiseLevel = route?.params?.ambientNoiseLevel;
+  const monitoringMode = route?.params?.monitoringMode || 'cell_only';
 
   const [isPreparing, setIsPreparing] = useState(true);
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -97,6 +100,34 @@ export default function MonitorActiveScreen({ route, navigation }) {
   const lastPeakAtRef = useRef(0);
   const meteringSumRef = useRef(0);
   const meteringSamplesRef = useRef(0);
+  const severeAlertTriggeredRef = useRef(false);
+  const emergencySettingsRef = useRef(null);
+
+  const maybeTriggerSevereAlert = async () => {
+    if (severeAlertTriggeredRef.current) {
+      return;
+    }
+
+    const settings = emergencySettingsRef.current;
+    if (!settings?.enabled) {
+      return;
+    }
+
+    const threshold = Number(settings.severe_threshold_events || 8);
+    const estimatedApnea = Math.floor(peakEventsRef.current / 12);
+    if (estimatedApnea < threshold) {
+      return;
+    }
+
+    severeAlertTriggeredRef.current = true;
+    setStatusText('Alerta: patrón severo detectado. Activando protocolo de seguridad...');
+
+    await triggerSevereApneaAlert(settings, {
+      sessionId,
+      estimatedEvents: estimatedApnea,
+      monitoringMode,
+    });
+  };
 
   const shortSession = useMemo(() => (sessionId ? sessionId.slice(0, 8) : '--'), [sessionId]);
   const elapsedLabel = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
@@ -160,6 +191,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
     if (level > 0.82 && now - lastPeakAtRef.current > 1500) {
       peakEventsRef.current += 1;
       lastPeakAtRef.current = now;
+      maybeTriggerSevereAlert().catch(() => null);
     }
 
     setWavePoints((previous) => {
@@ -313,6 +345,8 @@ export default function MonitorActiveScreen({ route, navigation }) {
     }
 
     try {
+      emergencySettingsRef.current = await getEmergencyAlertSettings();
+
       const granted = await requestAudioPermission();
       setPermissionGranted(granted);
 
@@ -440,6 +474,9 @@ export default function MonitorActiveScreen({ route, navigation }) {
       </View>
 
       <Text style={styles.sessionText}>Sesion {shortSession}</Text>
+      <Text style={styles.modeText}>
+        {monitoringMode === 'cell_oximeter' ? 'Modo: Celular + oxímetro' : 'Modo: Solo celular'}
+      </Text>
       <Text style={styles.statusText}>{statusText}</Text>
 
       <View style={styles.waveWrap}>
@@ -521,6 +558,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 34,
     lineHeight: 38,
+  },
+  modeText: {
+    marginTop: 6,
+    color: palette.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 13,
   },
   statusText: {
     marginTop: 8,
