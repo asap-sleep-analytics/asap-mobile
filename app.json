@@ -2,19 +2,24 @@
   "expo": {
     "name": "ASAP Mobile",
     "slug": "asap-mobile",
+    "scheme": "asap",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {},
-    "web": {
-      "bundler": "metro"
+    "android": {
+      "package": "com.asap.mobile"
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-dev-client"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.asap.mobile"
+    }
   }
 }

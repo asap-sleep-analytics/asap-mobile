@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { palette } from '../theme/tokens';
 
-export default function GlassCard({ children, style }) {
+export default function GlassCard({ children, style = null }) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 

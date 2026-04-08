@@ -18,7 +18,6 @@ import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { getApiErrorMessage, getDashboardSummary, listSleepDetections, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
-import SleepFeedbackCard from '../components/SleepFeedbackCard';
 
 const DEFAULT_DISCLAIMER = 'A.S.A.P. no reemplaza diagnostico clinico profesional.';
 
@@ -88,6 +87,30 @@ function buildFallbackTimeline() {
     value: index % 7 === 0 ? 62 : 36,
     label: index % 7 === 0 ? 'Interrupcion' : 'Normal',
   }));
+}
+
+function buildDailyPlan(score, apneaEvents, snoreEvents) {
+  const actions = [];
+
+  if (score < 65) {
+    actions.push('Prioriza una hora fija para dormir hoy y evita pantallas la última hora antes de acostarte.');
+  } else {
+    actions.push('Mantén la misma rutina de sueño de ayer para reforzar la continuidad nocturna.');
+  }
+
+  if (apneaEvents >= 4) {
+    actions.push('Se detectaron varios eventos respiratorios. Intenta dormir de lado y considera consulta clínica.');
+  } else {
+    actions.push('Los eventos respiratorios estuvieron controlados. Continúa con higiene de sueño constante.');
+  }
+
+  if (snoreEvents >= 12) {
+    actions.push('Hubo ronquido elevado. Evita alcohol nocturno y revisa congestión nasal antes de dormir.');
+  } else {
+    actions.push('El ronquido fue moderado o bajo. Mantén tu ambiente silencioso y ventilado.');
+  }
+
+  return actions;
 }
 
 function LoadingState({ pulse }) {
@@ -184,6 +207,7 @@ export default function DashboardHomeScreen({ navigation }) {
   const snoreCount = latestSession?.snore_count ?? summaryEvents.ronquidos ?? 0;
   const sleepScore = latestSession?.sleep_score ?? summary?.indicadores?.sleep_score ?? 0;
   const scoreVisual = useMemo(() => getScoreVisual(sleepScore, apneaCount), [sleepScore, apneaCount]);
+  const dailyPlan = useMemo(() => buildDailyPlan(sleepScore, apneaCount, snoreCount), [sleepScore, apneaCount, snoreCount]);
 
   const continuityData = useMemo(() => {
     const fromDetections = buildTimelineFromDetections(detections, latestSession?.start_time);
@@ -198,8 +222,6 @@ export default function DashboardHomeScreen({ navigation }) {
 
     return buildFallbackTimeline();
   }, [detections, latestSession?.start_time, summary?.indicadores?.continuidad]);
-
-  const latestFinishedSessionId = latestSession?.end_time ? latestSession.session_id : null;
 
   if (loading && !summary) {
     return (
@@ -219,10 +241,10 @@ export default function DashboardHomeScreen({ navigation }) {
         <GlassCard style={styles.heroCard}>
           <View style={[styles.heroLayout, isCompact ? styles.heroLayoutCompact : null]}>
             <View style={[styles.heroTextWrap, isCompact ? styles.heroTextWrapCompact : null]}>
-              <Text style={styles.heroEyebrow}>Dashboard nocturno</Text>
-              <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>Resumen de tu última noche</Text>
+              <Text style={styles.heroEyebrow}>Tu noche, en un vistazo</Text>
+              <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>Resumen de sueño de anoche</Text>
               <Text style={[styles.heroSubtitle, isCompact ? styles.heroSubtitleCompact : null]}>
-                Métricas reales del backend + card de feedback para reforzar el aprendizaje del modelo.
+                Revisa tu puntuación, eventos y continuidad de forma clara para tomar mejores decisiones hoy.
               </Text>
               <View style={styles.heroMetaRow}>
                 <View style={styles.heroMetaBadge}>
@@ -312,7 +334,16 @@ export default function DashboardHomeScreen({ navigation }) {
           </View>
         </GlassCard>
 
-        <SleepFeedbackCard sessionId={latestFinishedSessionId} onSaved={() => refreshData(true)} />
+        <GlassCard style={styles.planCard}>
+          <Text style={styles.planEyebrow}>Plan sugerido</Text>
+          <Text style={styles.planTitle}>¿Qué puedes hacer hoy para dormir mejor?</Text>
+          {dailyPlan.map((item, index) => (
+            <View key={`${index}-${item}`} style={styles.planRow}>
+              <Text style={styles.planIndex}>{index + 1}</Text>
+              <Text style={styles.planText}>{item}</Text>
+            </View>
+          ))}
+        </GlassCard>
 
         <Text style={styles.footerDisclaimer}>{summary?.disclaimer_medico || DEFAULT_DISCLAIMER}</Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -565,6 +596,48 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignItems: 'center',
     overflow: 'hidden',
+  },
+  planCard: {
+    borderColor: 'rgba(149,178,255,0.34)',
+    backgroundColor: 'rgba(13,18,31,0.82)',
+  },
+  planEyebrow: {
+    color: '#9FB0FF',
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  planTitle: {
+    marginTop: 8,
+    color: palette.textPrimary,
+    fontFamily: fonts.headingMedium,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  planRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  planIndex: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: 'rgba(159,176,255,0.2)',
+    color: '#C7D1FF',
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    overflow: 'hidden',
+  },
+  planText: {
+    flex: 1,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 20,
   },
   chartCanvas: {
     height: 184,

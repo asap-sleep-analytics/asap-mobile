@@ -1,7 +1,10 @@
 // @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
@@ -48,10 +51,127 @@ function formatDurationMinutes(startTime, endTime) {
   return `${hours} h ${mins} min`;
 }
 
+function toIsoDate(value) {
+  if (!value) {
+    return '--';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toISOString().slice(0, 16).replace('T', ' ');
+}
+
+function escapeCsv(value) {
+  const text = String(value ?? '');
+  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function buildCsvReport(sessions) {
+  const header = [
+    'Sesion',
+    'Inicio',
+    'Fin',
+    'Duracion',
+    'Sleep Score',
+    'Eventos Apnea',
+    'Eventos Ronquido',
+    'Ruido Ambiente dB',
+    'Disclaimer',
+  ];
+
+  const rows = sessions.map((session) => [
+    session.session_id || '--',
+    toIsoDate(session.start_time),
+    toIsoDate(session.end_time),
+    formatDurationMinutes(session.start_time, session.end_time),
+    session.sleep_score ?? '--',
+    session.apnea_events ?? 0,
+    session.snore_count ?? 0,
+    session.ambient_noise_level ?? '--',
+    'Documento orientativo. No es diagnostico medico.',
+  ]);
+
+  return [header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
+}
+
+function buildPdfHtmlReport(sessions, metrics) {
+  const rows = sessions
+    .map(
+      (session) => `
+      <tr>
+        <td>${session.session_id || '--'}</td>
+        <td>${toIsoDate(session.start_time)}</td>
+        <td>${toIsoDate(session.end_time)}</td>
+        <td>${formatDurationMinutes(session.start_time, session.end_time)}</td>
+        <td>${session.sleep_score ?? '--'}</td>
+        <td>${session.apnea_events ?? 0}</td>
+        <td>${session.snore_count ?? 0}</td>
+      </tr>`,
+    )
+    .join('');
+
+  return `
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; padding: 20px; color: #111827; }
+        h1 { margin: 0 0 8px; font-size: 22px; }
+        h2 { margin: 22px 0 10px; font-size: 16px; }
+        .muted { color: #6b7280; font-size: 12px; }
+        .warn { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 10px; padding: 10px 12px; margin: 14px 0; font-size: 12px; }
+        .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0 16px; }
+        .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
+        .label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+        .value { margin-top: 6px; font-size: 20px; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+        th, td { border: 1px solid #e5e7eb; text-align: left; padding: 8px; }
+        th { background: #f8fafc; font-size: 11px; text-transform: uppercase; color: #374151; }
+      </style>
+    </head>
+    <body>
+      <h1>A.S.A.P. - Reporte de Sueno</h1>
+      <p class="muted">Generado: ${new Date().toLocaleString('es-CO')}</p>
+
+      <div class="warn">
+        Documento de orientacion para seguimiento personal. No constituye diagnostico medico ni reemplaza consulta profesional.
+      </div>
+
+      <div class="grid">
+        <div class="card"><div class="label">Noches</div><div class="value">${metrics.noches}</div></div>
+        <div class="card"><div class="label">Score Promedio</div><div class="value">${metrics.score}</div></div>
+        <div class="card"><div class="label">Total Apnea</div><div class="value">${metrics.apnea}</div></div>
+        <div class="card"><div class="label">Total Ronquido</div><div class="value">${metrics.ronquido}</div></div>
+      </div>
+
+      <h2>Detalle por sesion</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Sesion</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Duracion</th>
+            <th>Score</th>
+            <th>Apnea</th>
+            <th>Ronquido</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </body>
+  </html>`;
+}
+
 export default function HistorySessionsScreen({ navigation }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState(null);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async (soft = false) => {
@@ -103,6 +223,73 @@ export default function HistorySessionsScreen({ navigation }) {
     return Math.round(total / withScore.length);
   }, [completedSessions]);
 
+  const exportMetrics = useMemo(
+    () => ({
+      noches: completedSessions.length,
+      score: averageScore,
+      apnea: totalApnea,
+      ronquido: totalSnore,
+    }),
+    [completedSessions.length, averageScore, totalApnea, totalSnore],
+  );
+
+  const handleExportCsv = async () => {
+    if (completedSessions.length === 0) {
+      Alert.alert('Sin datos', 'Aún no hay sesiones finalizadas para exportar.');
+      return;
+    }
+
+    setExportingFormat('csv');
+    try {
+      const csvContent = buildCsvReport(completedSessions);
+      const fileUri = `${FileSystem.cacheDirectory}asap_reporte_sueno_${Date.now()}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert('Exportado', `Archivo generado en: ${fileUri}`);
+        return;
+      }
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Exportar reporte CSV',
+      });
+    } catch {
+      Alert.alert('Error', 'No fue posible exportar el CSV en este momento.');
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (completedSessions.length === 0) {
+      Alert.alert('Sin datos', 'Aún no hay sesiones finalizadas para exportar.');
+      return;
+    }
+
+    setExportingFormat('pdf');
+    try {
+      const html = buildPdfHtmlReport(completedSessions, exportMetrics);
+      const { uri } = await Print.printToFileAsync({ html });
+
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert('Exportado', `Archivo generado en: ${uri}`);
+        return;
+      }
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Exportar reporte PDF',
+      });
+    } catch {
+      Alert.alert('Error', 'No fue posible exportar el PDF en este momento.');
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
@@ -138,6 +325,18 @@ export default function HistorySessionsScreen({ navigation }) {
               style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}
             >
               <Text style={styles.ghostButtonText}>Ir a monitor</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleExportPdf}
+              style={({ pressed }) => [styles.ghostButtonBlue, pressed ? styles.pressed : null]}
+            >
+              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'pdf' ? 'Generando PDF...' : 'Exportar PDF'}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleExportCsv}
+              style={({ pressed }) => [styles.ghostButtonBlue, pressed ? styles.pressed : null]}
+            >
+              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'csv' ? 'Generando CSV...' : 'Exportar CSV'}</Text>
             </Pressable>
             {refreshing ? <ActivityIndicator color={palette.mint} /> : null}
           </View>
@@ -270,6 +469,19 @@ const styles = StyleSheet.create({
   ghostButtonText: {
     color: palette.textPrimary,
     fontFamily: fonts.body,
+    fontSize: 13,
+  },
+  ghostButtonBlue: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(159,176,255,0.44)',
+    backgroundColor: 'rgba(159,176,255,0.14)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  ghostButtonBlueText: {
+    color: '#D1DBFF',
+    fontFamily: fonts.bodyBold,
     fontSize: 13,
   },
   pressed: {

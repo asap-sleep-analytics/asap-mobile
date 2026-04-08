@@ -53,9 +53,9 @@ export default function SleepFeedbackCard({ sessionId, onSaved }) {
 
   return (
     <GlassCard style={styles.card}>
-      <Text style={styles.eyebrow}>Feedback loop</Text>
+      <Text style={styles.eyebrow}>Tu percepción</Text>
       <Text style={styles.title}>¿Cómo te sentiste al despertar?</Text>
-      <Text style={styles.muted}>Tu respuesta mejora el dataset para próximos entrenamientos.</Text>
+      <Text style={styles.muted}>Tu respuesta nos ayuda a personalizar mejor tus recomendaciones.</Text>
 
       <View style={styles.ratingRow}>
         {ratingScale.map((value) => {
