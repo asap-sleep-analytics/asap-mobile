@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,19 +18,27 @@ import {
   getEmergencyAlertSettings,
   saveEmergencyAlertSettings,
 } from '../../../services/localHealth';
+import type { EmergencyAlertSettings } from '../../../types';
 import { fonts, palette } from '../../../theme/tokens';
 
-const THRESHOLD_OPTIONS = [6, 8, 10, 12];
+interface ContactPickerItem {
+  id: string;
+  name: string;
+  phoneNumbers?: { number: string }[];
+  emails?: { email: string }[];
+}
 
-export default function EmergencyAlertsScreen({ navigation }) {
-  const [settings, setSettings] = useState(null);
+const THRESHOLD_OPTIONS = [6, 8, 10, 12] as const;
+
+export default function EmergencyAlertsScreen({ navigation }: { navigation: any }) {
+  const [settings, setSettings] = useState<EmergencyAlertSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [contactsPickerVisible, setContactsPickerVisible] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
-  const [availableContacts, setAvailableContacts] = useState([]);
-  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const [availableContacts, setAvailableContacts] = useState<ContactPickerItem[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState('');
 
   useEffect(() => {

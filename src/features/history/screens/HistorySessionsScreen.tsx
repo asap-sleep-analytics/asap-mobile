@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,6 +9,7 @@ import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { getApiErrorMessage, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
+import type { SleepSessionRecord } from '../../../types';
 
 function formatDateTime(value) {
   if (!value) {
@@ -62,7 +62,7 @@ function toIsoDate(value) {
   return date.toISOString().slice(0, 16).replace('T', ' ');
 }
 
-function escapeCsv(value) {
+function escapeCsv(value: unknown) {
   const text = String(value ?? '');
   if (text.includes(',') || text.includes('"') || text.includes('\n')) {
     return `"${text.replace(/"/g, '""')}"`;
@@ -70,7 +70,7 @@ function escapeCsv(value) {
   return text;
 }
 
-function buildCsvReport(sessions) {
+function buildCsvReport(sessions: SleepSessionRecord[]) {
   const header = [
     'Sesion',
     'Inicio',
@@ -98,7 +98,7 @@ function buildCsvReport(sessions) {
   return [header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
 }
 
-function buildPdfHtmlReport(sessions, metrics) {
+function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetrics) {
   const rows = sessions
     .map(
       (session) => `
@@ -167,11 +167,18 @@ function buildPdfHtmlReport(sessions, metrics) {
   </html>`;
 }
 
-export default function HistorySessionsScreen({ navigation }) {
-  const [sessions, setSessions] = useState([]);
+interface SessionMetrics {
+  noches: number;
+  score: string;
+  apnea: number;
+  ronquido: number;
+}
+
+export default function HistorySessionsScreen({ navigation }: { navigation: any }) {
+  const [sessions, setSessions] = useState<SleepSessionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState(null);
+  const [exportingFormat, setExportingFormat] = useState<'csv' | 'pdf' | null>(null);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async (soft = false) => {

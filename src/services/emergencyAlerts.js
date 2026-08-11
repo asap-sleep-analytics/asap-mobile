@@ -44,26 +44,46 @@ async function dispatchLinks(settings, message) {
     return;
   }
 
-  const first = contacts[0];
-  const phone = normalizePhone(first?.phone);
-  const email = String(first?.email || '').trim();
+  const results = [];
+  for (const contact of contacts) {
+    const phone = normalizePhone(contact?.phone);
+    const email = String(contact?.email || '').trim();
+    let notified = false;
 
-  if (settings?.methods?.whatsapp && phone) {
-    const url = `whatsapp://send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`;
-    if (await Linking.canOpenURL(url)) {
-      await Linking.openURL(url);
-      return;
+    if (settings?.methods?.whatsapp && phone) {
+      try {
+        const url = `whatsapp://send?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`;
+        if (await Linking.canOpenURL(url)) {
+          await Linking.openURL(url);
+          notified = true;
+        }
+      } catch {
+        notified = false;
+      }
     }
+
+    if (!notified && settings?.methods?.sms && phone) {
+      try {
+        await Linking.openURL(`sms:${phone}?body=${encodeURIComponent(message)}`);
+        notified = true;
+      } catch {
+        notified = false;
+      }
+    }
+
+    if (!notified && settings?.methods?.email && email) {
+      try {
+        await Linking.openURL(`mailto:${email}?subject=${encodeURIComponent('Alerta A.S.A.P.')}&body=${encodeURIComponent(message)}`);
+        notified = true;
+      } catch {
+        notified = false;
+      }
+    }
+
+    results.push({ contact, notified });
   }
 
-  if (settings?.methods?.sms && phone) {
-    await Linking.openURL(`sms:${phone}?body=${encodeURIComponent(message)}`);
-    return;
-  }
-
-  if (settings?.methods?.email && email) {
-    await Linking.openURL(`mailto:${email}?subject=${encodeURIComponent('Alerta A.S.A.P.')}&&body=${encodeURIComponent(message)}`);
-  }
+  return results;
 }
 
 export async function triggerSevereApneaAlert(settings, payload) {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -18,13 +17,14 @@ import {
   getPreferredOximeterDevice,
   savePreferredOximeterDevice,
 } from '../../../services/localHealth';
+import type { ConnectedOximeter, OximeterDevice } from '../../../types';
 import { fonts, palette } from '../../../theme/tokens';
 
 export default function OximeterConnectScreen() {
-  const [devices, setDevices] = useState([]);
+  const [devices, setDevices] = useState<OximeterDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [connectingId, setConnectingId] = useState('');
-  const [connectedDevice, setConnectedDevice] = useState(null);
+  const [connectedDevice, setConnectedDevice] = useState<ConnectedOximeter | null>(null);
   const [error, setError] = useState('');
 
   const loadConnectionStatus = useCallback(async () => {

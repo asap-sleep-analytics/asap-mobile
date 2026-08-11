@@ -1,34 +1,66 @@
-// @ts-nocheck
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Brightness from 'expo-brightness';
 import * as FileSystem from 'expo-file-system';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { AppContext } from '../../../context/AppContext';
-import { finishSleepSession, uploadSleepFragment } from '../../../services/api';
+import { finishSleepSession, uploadSleepFragment, predictApneaFromFile } from '../../../services/api';
 import { triggerSevereApneaAlert } from '../../../services/emergencyAlerts';
 import { getEmergencyAlertSettings } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
+import { useApneaDetection } from '../../../hooks/useApneaDetection';
+import ApneaResultCard from '../../../components/ApneaResultCard';
+
+interface RouteParams {
+  sessionId?: string;
+  ambientNoiseLevel?: number;
+  monitoringMode?: string;
+}
+
+interface Props {
+  route: { params?: RouteParams };
+  navigation: { replace: (screen: string) => void; goBack: () => void };
+}
+
+interface EmergencySettings {
+  enabled: boolean;
+  severe_threshold_events?: number;
+  methods?: {
+    wake_alarm?: boolean;
+    notification?: boolean;
+    whatsapp?: boolean;
+    sms?: boolean;
+    email?: boolean;
+  };
+  auto_dispatch?: boolean;
+  contacts?: Array<{ phone?: string; email?: string }>;
+}
+
+interface PredictionResult {
+  nivel: string;
+  interpretacion: string;
+  probabilidad: number;
+}
 
 const FRAGMENT_DURATION_MS = 30_000;
 const WAVE_BARS = 28;
 
-const RECORDING_OPTIONS = {
+const RECORDING_OPTIONS: Audio.RecordingOptions = {
   isMeteringEnabled: true,
   android: {
     extension: '.m4a',
-    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-    audioEncoder: Audio.AndroidAudioEncoder.AAC,
+    outputFormat: Audio.AndroidOutputFormat.MPEG_4 as number,
+    audioEncoder: Audio.AndroidAudioEncoder.AAC as number,
     sampleRate: 16000,
     numberOfChannels: 1,
     bitRate: 128000,
   },
   ios: {
     extension: '.m4a',
-    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-    audioQuality: Audio.IOSAudioQuality.MAX,
+    outputFormat: Audio.IOSOutputFormat.MPEG4AAC as number,
+    audioQuality: Audio.IOSAudioQuality.MAX as number,
     sampleRate: 16000,
     numberOfChannels: 1,
     bitRate: 128000,
@@ -42,18 +74,18 @@ const RECORDING_OPTIONS = {
   },
 };
 
-function meterToLevel(metering) {
+function meterToLevel(metering: number): number {
   const clamped = Math.max(-60, Math.min(0, metering));
   return (clamped + 60) / 60;
 }
 
-function meterToAmbientDb(metering) {
+function meterToAmbientDb(metering: number): number {
   const clamped = Math.max(-60, Math.min(0, metering));
   const normalized = (clamped + 60) / 60;
   return Math.round(normalized * 55 + 25);
 }
 
-function formatElapsed(seconds) {
+function formatElapsed(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
@@ -65,7 +97,15 @@ function formatElapsed(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-export default function MonitorActiveScreen({ route, navigation }) {
+function generateSimulatedSpo2Values(count = 10): number[] {
+  const values: number[] = [];
+  for (let i = 0; i < count; i++) {
+    values.push(Math.floor(92 + Math.random() * 5));
+  }
+  return values;
+}
+
+export default function MonitorActiveScreen({ route, navigation }: Props) {
   useKeepAwake();
 
   const { setActiveSleepSessionId } = useContext(AppContext);
@@ -75,7 +115,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
 
   const [isPreparing, setIsPreparing] = useState(true);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(null);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [uploadedFragments, setUploadedFragments] = useState(0);
   const [capturedFragments, setCapturedFragments] = useState(0);
@@ -84,24 +124,27 @@ export default function MonitorActiveScreen({ route, navigation }) {
   const [statusText, setStatusText] = useState('Preparando monitoreo...');
   const [wavePoints, setWavePoints] = useState(Array.from({ length: WAVE_BARS }, () => 0.08));
 
+  const [predictions, setPredictions] = useState<PredictionResult[]>([]);
+  const [spo2Values, setSpo2Values] = useState<number[]>([]);
+
   const monitoringRef = useRef(false);
-  const recordingRef = useRef(null);
-  const fragmentTimerRef = useRef(null);
-  const elapsedTimerRef = useRef(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const fragmentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fragmentStartedAtRef = useRef(0);
   const fragmentIndexRef = useRef(0);
   const isFinalizingRef = useRef(false);
   const isStoppingRef = useRef(false);
   const mountedRef = useRef(false);
 
-  const brightnessBeforeRef = useRef(null);
+  const brightnessBeforeRef = useRef<number | null>(null);
 
   const peakEventsRef = useRef(0);
   const lastPeakAtRef = useRef(0);
   const meteringSumRef = useRef(0);
   const meteringSamplesRef = useRef(0);
   const severeAlertTriggeredRef = useRef(false);
-  const emergencySettingsRef = useRef(null);
+  const emergencySettingsRef = useRef<EmergencySettings | null>(null);
 
   const maybeTriggerSevereAlert = async () => {
     if (severeAlertTriggeredRef.current) {
@@ -166,7 +209,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
         await Brightness.setBrightnessAsync(0.02);
       }
     } catch {
-      // Fallback silencioso: si no se puede ajustar brillo, mantenemos UI negra para ahorro.
+      // Fallback silencioso
     }
   };
 
@@ -176,11 +219,11 @@ export default function MonitorActiveScreen({ route, navigation }) {
         await Brightness.setBrightnessAsync(brightnessBeforeRef.current);
       }
     } catch {
-      // Evita bloquear cierre de monitoreo por errores de brillo.
+      // Evita bloquear cierre de monitoreo
     }
   };
 
-  const updateWaveFromMetering = (metering) => {
+  const updateWaveFromMetering = (metering: number) => {
     const level = meterToLevel(metering);
     const ambientDb = meterToAmbientDb(metering);
 
@@ -201,7 +244,17 @@ export default function MonitorActiveScreen({ route, navigation }) {
     });
   };
 
-  const uploadAndDeleteFragment = async ({ uri, durationSeconds, startedAtMs, fragmentIndex }) => {
+  const uploadAndDeleteFragment = async ({
+    uri,
+    durationSeconds,
+    startedAtMs,
+    fragmentIndex,
+  }: {
+    uri: string;
+    durationSeconds: number;
+    startedAtMs: number;
+    fragmentIndex: number;
+  }) => {
     if (!uri || !sessionId) {
       return;
     }
@@ -223,7 +276,6 @@ export default function MonitorActiveScreen({ route, navigation }) {
       if (mountedRef.current) {
         setSilentErrors((prev) => prev + 1);
       }
-      console.warn('Fragment upload failed silently:', error?.message || error);
     } finally {
       if (mountedRef.current) {
         setPendingUploads((prev) => Math.max(0, prev - 1));
@@ -232,7 +284,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
       try {
         await FileSystem.deleteAsync(uri, { idempotent: true });
       } catch {
-        // Evita fallar el flujo si el archivo ya no existe.
+        // Archivo ya eliminado
       }
     }
   };
@@ -250,14 +302,14 @@ export default function MonitorActiveScreen({ route, navigation }) {
     isFinalizingRef.current = true;
     clearFragmentTimer();
 
-    let status = null;
+    let status: Audio.RecordingStatus | null = null;
     try {
       status = await recording.getStatusAsync();
       if (status?.isRecording) {
         await recording.stopAndUnloadAsync();
       }
     } catch {
-      // La grabación pudo detenerse por sistema; continuamos con cleanup.
+      // La grabación pudo detenerse por sistema
     }
 
     const uri = recording.getURI();
@@ -282,6 +334,38 @@ export default function MonitorActiveScreen({ route, navigation }) {
         startedAtMs,
         fragmentIndex,
       });
+    }
+
+    if (uri && fragmentIndex > 0) {
+      try {
+        const currentSpo2 = generateSimulatedSpo2Values(10);
+        setSpo2Values(currentSpo2);
+
+        const result = await predictApneaFromFile({
+          fileUri: uri,
+          spo2: currentSpo2,
+          modo: 'screening',
+          perfil: 'general',
+        });
+
+        if (mountedRef.current && result) {
+          setPredictions((prev) => [...prev.slice(-4), result]);
+
+          if (result.nivel === 'CRITICO' && emergencySettingsRef.current?.enabled) {
+            try {
+              await triggerSevereApneaAlert(emergencySettingsRef.current, {
+                sessionId,
+                estimatedEvents: 1,
+                monitoringMode,
+              });
+            } catch {
+              // Error silencioso
+            }
+          }
+        }
+      } catch {
+        // Predicción falló silenciosamente
+      }
     }
 
     isFinalizingRef.current = false;
@@ -322,11 +406,10 @@ export default function MonitorActiveScreen({ route, navigation }) {
       setStatusText('No fue posible iniciar la grabación.');
       setIsMonitoring(false);
       monitoringRef.current = false;
-      console.warn('Audio recording start failed:', error?.message || error);
     }
   };
 
-  const requestAudioPermission = async () => {
+  const requestAudioPermission = async (): Promise<boolean> => {
     const current = await Audio.getPermissionsAsync();
     if (current.granted) {
       return true;
@@ -375,7 +458,6 @@ export default function MonitorActiveScreen({ route, navigation }) {
       setStatusText('No fue posible inicializar el monitoreo.');
       setIsPreparing(false);
       setIsMonitoring(false);
-      console.warn('Monitoring bootstrap failed:', error?.message || error);
     }
   };
 
@@ -412,9 +494,8 @@ export default function MonitorActiveScreen({ route, navigation }) {
         ambient_noise_level: finalAmbientNoise,
       });
       setActiveSleepSessionId('');
-    } catch (error) {
-      // Error silencioso para evitar interrupciones agresivas en experiencia nocturna.
-      console.warn('Finish sleep session failed:', error?.message || error);
+    } catch {
+      // Error silencioso
     }
 
     try {
@@ -422,7 +503,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
         allowsRecordingIOS: false,
       });
     } catch {
-      // Sin bloqueo.
+      // Sin bloqueo
     }
 
     await restoreBrightness();
@@ -450,7 +531,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
             }
           }
         } catch {
-          // Cleanup defensivo.
+          // Cleanup defensivo
         }
 
         await restoreBrightness();
@@ -458,7 +539,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
         try {
           await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
         } catch {
-          // Sin bloqueo.
+          // Sin bloqueo
         }
       };
 
@@ -501,7 +582,7 @@ export default function MonitorActiveScreen({ route, navigation }) {
         </View>
       </View>
 
-      <Text style={styles.microText}>Errores de red silenciosos: {silentErrors}</Text>
+      <Text style={styles.microText}>Errores de red: {silentErrors}</Text>
 
       {isPreparing ? (
         <View style={styles.loadingWrap}>
@@ -509,6 +590,26 @@ export default function MonitorActiveScreen({ route, navigation }) {
           <Text style={styles.loadingText}>Solicitando permisos de audio...</Text>
         </View>
       ) : null}
+
+      {predictions.length > 0 && (
+        <View style={styles.apneaSection}>
+          <Text style={styles.apneaSectionTitle}>Predicciones de Apnea</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.predictionsScroll}
+          >
+            {predictions.map((pred, idx) => (
+              <View key={`pred-${idx}`} style={styles.predictionCardWrapper}>
+                <ApneaResultCard result={pred} />
+              </View>
+            ))}
+          </ScrollView>
+          <Text style={styles.spo2Info}>
+            SpO2: {spo2Values.length > 0 ? spo2Values.join(', ') : 'N/A'}
+          </Text>
+        </View>
+      )}
 
       {!permissionGranted ? (
         <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
@@ -660,5 +761,37 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: palette.textPrimary,
     fontFamily: fonts.body,
+  },
+  apneaSection: {
+    marginTop: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  apneaSectionTitle: {
+    color: palette.mint,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  predictionsScroll: {
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  predictionCardWrapper: {
+    marginRight: 10,
+    minWidth: 260,
+  },
+  spo2Info: {
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 10,
+    lineHeight: 16,
   },
 });

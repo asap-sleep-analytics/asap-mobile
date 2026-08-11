@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -7,11 +6,17 @@ import GlassCard from '../../../components/GlassCard';
 import { getTipsProgress, saveTipsProgress } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
 import { getTipsModuleById } from '../tipsContent';
+import type { TipsProgressData } from '../../../types';
 
-export default function TipsDetailScreen({ route }) {
+interface RouteParams {
+  moduleId?: string;
+  title?: string;
+}
+
+export default function TipsDetailScreen({ route }: { route: { params?: RouteParams } }) {
   const moduleId = route?.params?.moduleId;
   const module = useMemo(() => getTipsModuleById(moduleId), [moduleId]);
-  const [checkedItems, setCheckedItems] = useState([]);
+  const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [expandedSectionIndex, setExpandedSectionIndex] = useState(0);
 
   useEffect(() => {
@@ -37,7 +42,7 @@ export default function TipsDetailScreen({ route }) {
     );
   }
 
-  const toggleChecklist = async (item) => {
+  const toggleChecklist = async (item: string) => {
     const nextChecked = checkedItems.includes(item)
       ? checkedItems.filter((value) => value !== item)
       : [...checkedItems, item];
@@ -48,7 +53,7 @@ export default function TipsDetailScreen({ route }) {
 
   const progress = module.checklist.length > 0 ? Math.round((checkedItems.length / module.checklist.length) * 100) : 0;
 
-  const openResource = async (url) => {
+  const openResource = async (url: string) => {
     try {
       await Linking.openURL(url);
     } catch {

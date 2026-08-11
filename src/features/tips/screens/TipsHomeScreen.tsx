@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -6,8 +5,10 @@ import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { fonts, palette } from '../../../theme/tokens';
 import { TIPS_MODULES } from '../tipsContent';
+import type { TipsProgress } from '../../../types';
+import { getTipsProgress } from '../../../services/localHealth';
 
-export default function TipsHomeScreen({ navigation }) {
+export default function TipsHomeScreen({ navigation }: { navigation: { navigate: (screen: string, params?: Record<string, unknown>) => void } }) {
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>

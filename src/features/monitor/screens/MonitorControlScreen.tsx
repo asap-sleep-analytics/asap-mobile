@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { Audio } from 'expo-av';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import GlassCard from '../../../components/GlassCard';
@@ -16,8 +16,12 @@ import {
 } from '../../../services/localHealth';
 import { getConnectedOximeter, isOximeterConnected } from '../../../services/oximeterBluetooth';
 import { fonts, palette } from '../../../theme/tokens';
+import type { MonitorMode, SleepDiaryEntry, SleepSessionStartPayload } from '../../../types';
 
-function toNumberOrUndefined(value) {
+const NOISE_CALIBRATION_TOTAL_MS = 5000;
+const NOISE_CALIBRATION_SAMPLE_MS = 250;
+
+function toNumberOrUndefined(value: string | null | undefined): number | undefined {
   if (value === '' || value === null || value === undefined) {
     return undefined;
   }
@@ -25,21 +29,42 @@ function toNumberOrUndefined(value) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export default function MonitorControlScreen({ navigation }) {
+function clampDb(value: number): number {
+  return Math.max(0, Math.min(120, value));
+}
+
+function mapMeteringToAmbientDb(meteringDbfs: number): number {
+  return clampDb(Math.round(meteringDbfs + 100));
+}
+
+function formatRelativeCalibratedTime(timestamp: number | null | undefined): string {
+  if (!timestamp) return '';
+  const mins = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+  if (mins === 0) return 'justo ahora';
+  if (mins === 1) return 'hace 1 min';
+  return `hace ${mins} min`;
+}
+
+export default function MonitorControlScreen({ navigation }: { navigation: any }) {
   const { activeSleepSessionId, setActiveSleepSessionId } = useContext(AppContext);
 
-  const [sessions, setSessions] = useState([]);
-  const [ambientNoise, setAmbientNoise] = useState('45');
-  const [loading, setLoading] = useState(true);
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState('');
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [ambientNoise, setAmbientNoise] = useState<string>('45');
+  const [isCalibratingNoise, setIsCalibratingNoise] = useState<boolean>(false);
+  const [calibrationSecondsLeft, setCalibrationSecondsLeft] = useState<number | null>(null);
+  const [lastNoiseCalibrationAt, setLastNoiseCalibrationAt] = useState<number | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [working, setWorking] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
-  const [showIntroModal, setShowIntroModal] = useState(false);
-  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
-  const [monitorMode, setMonitorMode] = useState('cell_only');
-  const [oximeterDevice, setOximeterDevice] = useState(null);
-  const [oximeterConnected, setOximeterConnected] = useState(false);
-  const [sleepDiaryEntries, setSleepDiaryEntries] = useState([]);
+  const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
+  const [doNotShowAgain, setDoNotShowAgain] = useState<boolean>(false);
+  const [monitorMode, setMonitorMode] = useState<MonitorMode>('cell_only');
+  const [oximeterDevice, setOximeterDevice] = useState<any>(null);
+  const [oximeterConnected, setOximeterConnected] = useState<boolean>(false);
+  const [sleepDiaryEntries, setSleepDiaryEntries] = useState<SleepDiaryEntry[]>([]);
+  const isCalibratingNoiseRef = useRef<boolean>(false);
+  const lastNoiseCalibrationAtRef = useRef<number | null>(null);
 
   const refreshSessions = useCallback(async () => {
     setLoading(true);
@@ -73,20 +98,111 @@ export default function MonitorControlScreen({ navigation }) {
     }
   }, []);
 
+  const autoCalibrateAmbientNoise = useCallback(async (showErrorMessage: boolean = false) => {
+    if (isCalibratingNoiseRef.current) {
+      return;
+    }
+
+    isCalibratingNoiseRef.current = true;
+    setIsCalibratingNoise(true);
+    setCalibrationSecondsLeft(Math.ceil(NOISE_CALIBRATION_TOTAL_MS / 1000));
+    let recording: any = null;
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        if (showErrorMessage) {
+          setError('No se pudo calibrar automáticamente: permiso de micrófono denegado.');
+        }
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      recording = new Audio.Recording();
+      await recording.prepareToRecordAsync({
+        ...Audio.RecordingOptionsPresets.LOW_QUALITY,
+        isMeteringEnabled: true,
+      });
+
+      await recording.startAsync();
+
+      const samples: number[] = [];
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < NOISE_CALIBRATION_TOTAL_MS) {
+        await new Promise<void>((resolve) => { setTimeout(resolve, NOISE_CALIBRATION_SAMPLE_MS); });
+        const status = await recording.getStatusAsync();
+        if (status?.isRecording && Number.isFinite(status.metering)) {
+          samples.push(status.metering);
+        }
+
+        const elapsed = Date.now() - startedAt;
+        const remainingMs = Math.max(0, NOISE_CALIBRATION_TOTAL_MS - elapsed);
+        setCalibrationSecondsLeft(Math.ceil(remainingMs / 1000));
+      }
+
+      await recording.stopAndUnloadAsync();
+      recording = null;
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+
+      if (samples.length > 0) {
+        const avgMetering = samples.reduce((acc: number, value: number) => acc + value, 0) / samples.length;
+        const estimatedDb = mapMeteringToAmbientDb(avgMetering);
+        setAmbientNoise(String(estimatedDb));
+        const now = Date.now();
+        setLastNoiseCalibrationAt(now);
+        lastNoiseCalibrationAtRef.current = now;
+      } else if (showErrorMessage) {
+        setError('No se pudo estimar el ruido ambiente. Intenta recalibrar.');
+      }
+    } catch {
+      if (showErrorMessage) {
+        setError('Falló la calibración automática del ruido ambiente.');
+      }
+    } finally {
+      try {
+        if (recording) {
+          await recording.stopAndUnloadAsync();
+        }
+      } catch {
+        // ignore cleanup failures
+      }
+      try {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      } catch {
+        // ignore cleanup failures
+      }
+
+      isCalibratingNoiseRef.current = false;
+      setIsCalibratingNoise(false);
+      setCalibrationSecondsLeft(null);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       refreshSessions();
-    }, [refreshSessions]),
+      if (!lastNoiseCalibrationAtRef.current) {
+        autoCalibrateAmbientNoise(false);
+      }
+    }, [refreshSessions, autoCalibrateAmbientNoise]),
   );
 
   const openSession = useMemo(() => {
     if (activeSleepSessionId) {
-      return sessions.find((session) => session.session_id === activeSleepSessionId) || { session_id: activeSleepSessionId };
+      return sessions.find((session: any) => session.session_id === activeSleepSessionId) || { session_id: activeSleepSessionId };
     }
-    return sessions.find((session) => !session.end_time) || null;
+    return sessions.find((session: any) => !session.end_time) || null;
   }, [activeSleepSessionId, sessions]);
 
-  const latestFinished = useMemo(() => sessions.find((session) => !!session.end_time) || null, [sessions]);
+  const latestFinished = useMemo(() => sessions.find((session: any) => !!session.end_time) || null, [sessions]);
 
   const handleContinue = () => {
     const ambientNoiseLevel = toNumberOrUndefined(ambientNoise);
@@ -103,8 +219,8 @@ export default function MonitorControlScreen({ navigation }) {
     setError('');
 
     try {
-      const payload = ambientNoiseLevel === undefined ? {} : { ambient_noise_level: ambientNoiseLevel };
-      const response = await startSleepSession(payload);
+      const payload: SleepSessionStartPayload = ambientNoiseLevel === undefined ? {} : { ambient_noise_level: ambientNoiseLevel };
+      const response: any = await startSleepSession(payload);
       const sessionId = response.sesion.session_id;
       setActiveSleepSessionId(sessionId);
       navigation.navigate('MonitorActive', { sessionId, ambientNoiseLevel, monitoringMode: monitorMode });
@@ -208,12 +324,38 @@ export default function MonitorControlScreen({ navigation }) {
       <Text style={styles.label}>Ruido ambiente objetivo (dB)</Text>
       <TextInput
         value={ambientNoise}
-        onChangeText={setAmbientNoise}
+        onChangeText={(value: string) => {
+          setAmbientNoise(value);
+          setLastNoiseCalibrationAt(null);
+          lastNoiseCalibrationAtRef.current = null;
+        }}
         style={styles.input}
         keyboardType="decimal-pad"
         placeholder="45"
         placeholderTextColor={palette.textMuted}
       />
+      <View style={styles.noiseMetaRow}>
+        <Text style={styles.noiseHint}>
+          {isCalibratingNoise
+            ? `Midiendo ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
+            : lastNoiseCalibrationAt
+            ? `Valor automático (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)})`
+            : 'Puedes ajustar el valor manualmente si lo deseas.'}
+        </Text>
+        <Pressable
+          onPress={() => autoCalibrateAmbientNoise(true)}
+          disabled={isCalibratingNoise || working}
+          style={({ pressed }) => [
+            styles.recalibrateButton,
+            (isCalibratingNoise || working) ? styles.disabled : null,
+            pressed ? styles.pressed : null,
+          ]}
+        >
+          <Text style={styles.recalibrateButtonText}>
+            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Recalibrar'}
+          </Text>
+        </Pressable>
+      </View>
 
       <Pressable
         onPress={handleStart}
@@ -239,16 +381,16 @@ export default function MonitorControlScreen({ navigation }) {
         {sleepDiaryEntries.length > 0 && (
           <View style={styles.diaryList}>
             <Text style={styles.diaryListLabel}>Últimos registros</Text>
-            {sleepDiaryEntries.slice(0, 3).map((entry) => (
+            {sleepDiaryEntries.slice(0, 3).map((entry: SleepDiaryEntry) => (
               <View key={entry.id} style={styles.diaryItem}>
                 <Text style={styles.diaryItemDate}>
                   {new Date(entry.date).toLocaleDateString('es-CO')}
                 </Text>
                 <Text style={styles.diaryItemTime}>
-                  {entry.start} - {entry.end}
+                  {entry.bedtime} - {entry.wakeTime}
                 </Text>
                 <Text style={styles.diaryItemHours}>
-                  {entry.total_hours}h
+                  {entry.estimatedHours}h
                 </Text>
               </View>
             ))}
@@ -446,6 +588,33 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  noiseMetaRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  noiseHint: {
+    flex: 1,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  recalibrateButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(110,247,207,0.45)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(110,247,207,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  recalibrateButtonText: {
+    color: palette.mint,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
   },
   primaryButton: {
     marginTop: 8,
