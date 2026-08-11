@@ -16,10 +16,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
+
+      - name: Check EAS configuration
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::El secret EXPO_TOKEN no está configurado. Agrégalo en Settings > Secrets > Actions para publicar updates."
+            exit 1
+          fi
+          if ! node -e "const p=require('./app.json'); if(!p.expo.extra?.eas?.projectId) process.exit(1)"; then
+            echo "::error::Falta extra.eas.projectId en app.json. Córrelo localmente con 'eas init' y comparte el ID para agregarlo."
+            exit 1
+          fi
 
       - name: Configure Expo and EAS
         uses: expo/expo-github-action@v8
