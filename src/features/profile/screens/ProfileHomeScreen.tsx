@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +14,7 @@ import GlassCard from '../../../components/GlassCard';
 import { AppContext } from '../../../context/AppContext';
 import { getProfileSurvey, saveProfileSurvey } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
+import type { ProfileSurveyData } from '../../../types';
 
 function normalizeRisk(value) {
   if (typeof value !== 'string') {
@@ -38,7 +38,7 @@ function boolLabel(value) {
   return '--';
 }
 
-const SURVEY_DEFAULT = {
+const SURVEY_DEFAULT: Record<string, string | string[]> = {
   edad_rango: '',
   contextura: '',
   cuello_rango: '',
@@ -103,14 +103,14 @@ const COMORBIDITIES = [
   'Enfermedad pulmonar',
 ];
 
-export default function ProfileHomeScreen({ navigation }) {
+export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
   const { user, signOut } = useContext(AppContext);
   const [closingSession, setClosingSession] = useState(false);
   const [error, setError] = useState('');
   const [showSurvey, setShowSurvey] = useState(false);
   const [savingSurvey, setSavingSurvey] = useState(false);
 
-  const [survey, setSurvey] = useState(SURVEY_DEFAULT);
+  const [survey, setSurvey] = useState<Record<string, string | string[]>>(SURVEY_DEFAULT);
 
   const fullName = useMemo(() => user?.nombre_completo || user?.full_name || 'Paciente A.S.A.P.', [user]);
   const email = useMemo(() => user?.email || '--', [user]);

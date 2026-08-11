@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -6,11 +5,16 @@ import GlassCard from '../../../components/GlassCard';
 import { getApiErrorMessage, submitSleepFeedback } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
 
-const ratingScale = [1, 2, 3, 4, 5];
+interface SleepFeedbackCardProps {
+  sessionId?: string;
+  onSaved?: () => void;
+}
 
-export default function SleepFeedbackCard({ sessionId, onSaved }) {
-  const [rating, setRating] = useState(0);
-  const [wokeTired, setWokeTired] = useState(null);
+const ratingScale = [1, 2, 3, 4, 5] as const;
+
+export default function SleepFeedbackCard({ sessionId, onSaved }: SleepFeedbackCardProps) {
+  const [rating, setRating] = useState<number>(0);
+  const [wokeTired, setWokeTired] = useState<boolean | null>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');

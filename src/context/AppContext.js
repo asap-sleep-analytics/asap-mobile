@@ -6,7 +6,8 @@ import { clearAuthToken, getProfile, setAuthToken } from '../services/api';
 const TOKEN_KEY = 'asap.auth.token';
 const USER_KEY = 'asap.auth.user';
 const EXPIRES_AT_KEY = 'asap.auth.expiresAt';
-const DEFAULT_SESSION_SECONDS = 60 * 60 * 24 * 30;
+const DEFAULT_SESSION_SECONDS = 60 * 60 * 24 * 7;
+const RENEW_THRESHOLD_MS = 60 * 60 * 1000;
 
 async function clearStoredSession() {
   await Promise.all([

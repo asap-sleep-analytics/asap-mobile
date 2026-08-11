@@ -1,7 +1,10 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_BASE_URL || DEFAULT_BASE_URL;
+
+const isProduction = Constants?.appOwnership === 'expo' || Constants?.executionEnvironment === 'standalone';
 
 let authToken = '';
 
@@ -14,11 +17,25 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  const url = config.baseURL || '';
+  if (isProduction && url.startsWith('http://')) {
+    console.warn(
+      '⚠️ CONEXIÓN NO SEGURA: El API está usando HTTP en producción. Usa HTTPS para conexiones seguras.',
+    );
+  }
+  return config;
+});
+
+api.interceptors.request.use((config) => {
   if (authToken) {
     config.headers.Authorization = `Bearer ${authToken}`;
   }
   return config;
 });
+
+export function isAuthenticated() {
+  return authToken.length > 0;
+}
 
 export function getApiErrorMessage(error, fallback = 'No fue posible completar la solicitud.') {
   if (error?.response?.data?.detail) {
@@ -39,39 +56,39 @@ export function clearAuthToken() {
 }
 
 export async function analyzeAudioMetadata(payload) {
-  const { data } = await api.post('/analyze', payload);
+  const { data } = await api.post('/api/v1/analyze', payload);
   return data;
 }
 
 export async function registerUser(payload) {
-  const { data } = await api.post('/api/auth/registro', payload);
+  const { data } = await api.post('/api/v1/auth/registro', payload);
   return data;
 }
 
 export async function loginUser(payload) {
-  const { data } = await api.post('/api/auth/login', payload);
+  const { data } = await api.post('/api/v1/auth/login', payload);
   return data;
 }
 
 export async function getProfile() {
-  const { data } = await api.get('/api/auth/perfil');
+  const { data } = await api.get('/api/v1/auth/perfil');
   return data;
 }
 
 export async function getDashboardSummary() {
-  const { data } = await api.get('/api/dashboard/resumen');
+  const { data } = await api.get('/api/v1/dashboard/resumen');
   return data;
 }
 
 export async function calibrateSleep(ambientNoiseLevel) {
-  const { data } = await api.post('/api/sleep/calibracion', {
+  const { data } = await api.post('/api/v1/sleep/calibracion', {
     ambient_noise_level: ambientNoiseLevel,
   });
   return data;
 }
 
 export async function startSleepSession(payload = {}) {
-  const { data } = await api.post('/api/sleep/sesiones/iniciar', payload);
+  const { data } = await api.post('/api/v1/sleep/sesiones/iniciar', payload);
   return data;
 }
 
@@ -92,7 +109,7 @@ export async function uploadSleepFragment({ sessionId, fileUri, fragmentIndex, d
     formData.append('started_at', startedAt);
   }
 
-  const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/fragmento`, formData, {
+  const { data } = await api.post(`/api/v1/sleep/sesiones/${sessionId}/fragmento`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -102,26 +119,92 @@ export async function uploadSleepFragment({ sessionId, fileUri, fragmentIndex, d
 }
 
 export async function finishSleepSession(sessionId, payload = {}) {
-  const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/finalizar`, payload);
+  const { data } = await api.post(`/api/v1/sleep/sesiones/${sessionId}/finalizar`, payload);
   return data;
 }
 
 export async function listSleepSessions(limit = 20) {
-  const { data } = await api.get('/api/sleep/sesiones', {
+  const { data } = await api.get('/api/v1/sleep/sesiones', {
     params: { limit },
   });
   return data;
 }
 
 export async function listSleepDetections(sessionId, limit = 720) {
-  const { data } = await api.get(`/api/sleep/sesiones/${sessionId}/detecciones`, {
+  const { data } = await api.get(`/api/v1/sleep/sesiones/${sessionId}/detecciones`, {
     params: { limit },
   });
   return data;
 }
 
 export async function submitSleepFeedback(sessionId, payload) {
-  const { data } = await api.post(`/api/sleep/sesiones/${sessionId}/feedback`, payload);
+  const { data } = await api.post(`/api/v1/sleep/sesiones/${sessionId}/feedback`, payload);
+  return data;
+}
+
+/**
+ * Predice apnea del sueño usando audio + SpO2
+ * @param {Object} params
+ * @param {File|Blob} params.audioFile - Archivo WAV de 30 segundos
+ * @param {string} params.spo2 - Valores SpO2 separados por coma (ej: "95,94,93,91")
+ * @param {string} [params.modo='screening'] - Modo clínico: 'screening' o 'seguimiento'
+ * @param {string} [params.perfil='general'] - Perfil del paciente: 'general' o 'matias'
+ * @returns {Promise<Object>} Predicción con nivel (NORMAL/ALERTA/CRÍTICO), probabilidad e interpretación
+ */
+export async function predictApnea({ audioFile, spo2, modo = 'screening', perfil = 'general' }) {
+  const formData = new FormData();
+  formData.append('audio', audioFile, 'audio.wav');
+
+  const { data } = await api.post('/api/v1/sleep/v3/predict', formData, {
+    params: {
+      spo2,
+      modo,
+      perfil,
+    },
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 30000,
+  });
+
+  return data;
+}
+
+/**
+ * Predice apnea desde un archivo ya grabado (por URI local)
+ * Usado en MonitorActiveScreen para enviar fragmentos
+ * @param {Object} params
+ * @param {string} params.fileUri - URI local del archivo de audio (ej: file://...)
+ * @param {string|Array<number>} params.spo2 - Valores SpO2 (array o string "95,94,93,91")
+ * @param {string} [params.modo='screening'] - Modo clínico
+ * @param {string} [params.perfil='general'] - Perfil del paciente
+ * @returns {Promise<Object>} Predicción
+ */
+export async function predictApneaFromFile({ fileUri, spo2, modo = 'screening', perfil = 'general' }) {
+  const formData = new FormData();
+
+  // Convertir array de SpO2 a string si es necesario
+  const spo2Str = Array.isArray(spo2) ? spo2.map((v) => v.toString()).join(',') : spo2;
+
+  // Agregar archivo por URI
+  formData.append('audio', {
+    uri: fileUri,
+    type: 'audio/m4a',
+    name: 'audio.m4a',
+  });
+
+  const { data } = await api.post('/api/v1/sleep/v3/predict', formData, {
+    params: {
+      spo2: spo2Str,
+      modo,
+      perfil,
+    },
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 30000,
+  });
+
   return data;
 }
 

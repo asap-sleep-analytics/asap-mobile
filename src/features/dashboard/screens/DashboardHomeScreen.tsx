@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -18,10 +17,36 @@ import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { getApiErrorMessage, getDashboardSummary, listSleepDetections, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
+import type { DetectionLog, SleepContinuityPoint, SleepSessionRecord } from '../../../types';
 
 const DEFAULT_DISCLAIMER = 'A.S.A.P. no reemplaza diagnostico clinico profesional.';
 
-function getScoreVisual(score, apneaEvents) {
+interface ScoreVisual {
+  label: string;
+  color: string;
+  subtitle: string;
+}
+
+interface TimelinePoint {
+  timestamp: number;
+  value: number;
+  label: string;
+}
+
+interface DashboardSummaryResponse {
+  indicadores?: {
+    sleep_score?: number;
+    eventos_apnea_ronquido?: {
+      ronquidos: number;
+      apnea: number;
+      total: number;
+    };
+    continuidad?: SleepContinuityPoint[];
+  };
+  disclaimer_medico?: string;
+}
+
+function getScoreVisual(score: number, apneaEvents: number): ScoreVisual {
   if (score >= 82 && apneaEvents <= 2) {
     return { label: 'Recuperador', color: palette.mint, subtitle: 'Descanso estable' };
   }
@@ -31,7 +56,7 @@ function getScoreVisual(score, apneaEvents) {
   return { label: 'Alerta', color: palette.danger, subtitle: 'Sueno fragmentado' };
 }
 
-function resolveSessionStartMs(sessionStart, fallbackCount) {
+function resolveSessionStartMs(sessionStart: string | null | undefined, fallbackCount: number): number {
   const parsed = Date.parse(sessionStart || '');
   if (Number.isFinite(parsed)) {
     return parsed;
@@ -39,7 +64,7 @@ function resolveSessionStartMs(sessionStart, fallbackCount) {
   return Date.now() - Math.max(fallbackCount, 1) * 30 * 1000;
 }
 
-function buildTimelineFromDetections(detections = [], sessionStart = null) {
+function buildTimelineFromDetections(detections: DetectionLog[] = [], sessionStart: string | null | undefined = null): TimelinePoint[] {
   if (!Array.isArray(detections) || detections.length === 0) {
     return [];
   }
@@ -66,7 +91,7 @@ function buildTimelineFromDetections(detections = [], sessionStart = null) {
   });
 }
 
-function buildTimelineFromSummary(continuity = [], sessionStart = null) {
+function buildTimelineFromSummary(continuity: SleepContinuityPoint[] = [], sessionStart: string | null | undefined = null): TimelinePoint[] {
   if (!Array.isArray(continuity) || continuity.length === 0) {
     return [];
   }
@@ -80,7 +105,7 @@ function buildTimelineFromSummary(continuity = [], sessionStart = null) {
   }));
 }
 
-function buildFallbackTimeline() {
+function buildFallbackTimeline(): TimelinePoint[] {
   const now = Date.now();
   return Array.from({ length: 20 }).map((_, index) => ({
     timestamp: now - (20 - index) * 15 * 60 * 1000,
@@ -89,8 +114,8 @@ function buildFallbackTimeline() {
   }));
 }
 
-function buildDailyPlan(score, apneaEvents, snoreEvents) {
-  const actions = [];
+function buildDailyPlan(score: number, apneaEvents: number, snoreEvents: number): string[] {
+  const actions: string[] = [];
 
   if (score < 65) {
     actions.push('Prioriza una hora fija para dormir hoy y evita pantallas la última hora antes de acostarte.');
@@ -113,9 +138,13 @@ function buildDailyPlan(score, apneaEvents, snoreEvents) {
   return actions;
 }
 
-function LoadingState({ pulse }) {
+interface LoadingStateProps {
+  pulse: Animated.Value;
+}
+
+function LoadingState({ pulse }: LoadingStateProps) {
   return (
-    <GlassCard style={styles.loadingCard}>
+    <GlassCard style={styles.loadingCard as any}>
       <View style={styles.loadingHeaderRow}>
         <Text style={styles.sectionTitle}>Sincronizando con Neon</Text>
         <ActivityIndicator color={palette.mint} size="small" />
@@ -128,16 +157,16 @@ function LoadingState({ pulse }) {
   );
 }
 
-export default function DashboardHomeScreen({ navigation }) {
+export default function DashboardHomeScreen({ navigation }: { navigation: { getParent: () => { navigate: (screen: string) => void } | undefined } }) {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
   const isVeryCompact = width < 350;
   const chartWidth = Math.max(170, width - (isCompact ? 112 : 96));
   const scoreRadius = isVeryCompact ? 54 : isCompact ? 60 : 66;
 
-  const [summary, setSummary] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [detections, setDetections] = useState([]);
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [sessions, setSessions] = useState<SleepSessionRecord[]>([]);
+  const [detections, setDetections] = useState<DetectionLog[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -159,7 +188,7 @@ export default function DashboardHomeScreen({ navigation }) {
       setSummary(summaryResponse);
       setSessions(Array.isArray(sessionsResponse) ? sessionsResponse : []);
 
-      const latestCompletedSession = (sessionsResponse || []).find((session) => !!session.end_time);
+      const latestCompletedSession = (sessionsResponse || []).find((session: SleepSessionRecord) => !!session.end_time);
       if (latestCompletedSession?.session_id) {
         try {
           const logs = await listSleepDetections(latestCompletedSession.session_id, 900);
@@ -228,7 +257,7 @@ export default function DashboardHomeScreen({ navigation }) {
       <AmbientBackdrop>
         <ScrollView contentContainerStyle={styles.container}>
           <LoadingState pulse={loadingPulse} />
-          <Text style={styles.footerDisclaimer}>{summary?.disclaimer_medico || DEFAULT_DISCLAIMER}</Text>
+          <Text style={styles.footerDisclaimer}>{DEFAULT_DISCLAIMER}</Text>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </ScrollView>
       </AmbientBackdrop>
@@ -238,7 +267,7 @@ export default function DashboardHomeScreen({ navigation }) {
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <GlassCard style={styles.heroCard}>
+        <GlassCard style={styles.heroCard as any}>
           <View style={[styles.heroLayout, isCompact ? styles.heroLayoutCompact : null]}>
             <View style={[styles.heroTextWrap, isCompact ? styles.heroTextWrapCompact : null]}>
               <Text style={styles.heroEyebrow}>Tu noche, en un vistazo</Text>
@@ -266,11 +295,11 @@ export default function DashboardHomeScreen({ navigation }) {
                 activeStrokeWidth={isCompact ? 12 : 14}
                 inActiveStrokeWidth={isCompact ? 12 : 14}
                 progressValueColor={palette.textPrimary}
-                progressValueStyle={[styles.scoreValue, isCompact ? styles.scoreValueCompact : null]}
+                progressValueStyle={{ ...styles.scoreValue, ...(isCompact ? styles.scoreValueCompact : {}) }}
                 title="Sleep Score"
                 titleStyle={styles.scoreTitle}
                 subtitle={scoreVisual.label}
-                subtitleStyle={[styles.scoreSubtitle, { color: scoreVisual.color }]}
+                subtitleStyle={{ ...styles.scoreSubtitle, color: scoreVisual.color }}
                 valueSuffix=""
               />
             </View>
@@ -334,7 +363,7 @@ export default function DashboardHomeScreen({ navigation }) {
           </View>
         </GlassCard>
 
-        <GlassCard style={styles.planCard}>
+        <GlassCard style={styles.planCard as any}>
           <Text style={styles.planEyebrow}>Plan sugerido</Text>
           <Text style={styles.planTitle}>¿Qué puedes hacer hoy para dormir mejor?</Text>
           {dailyPlan.map((item, index) => (

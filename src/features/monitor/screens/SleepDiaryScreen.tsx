@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -24,7 +23,7 @@ const { width } = Dimensions.get('window');
 // UTILITIES
 // ============================================================================
 
-function estimateHours(start, end) {
+function estimateHours(start: string, end: string): number | null {
   const [sh, sm] = String(start).split(':').map(Number);
   const [eh, em] = String(end).split(':').map(Number);
   if (![sh, sm, eh, em].every(Number.isFinite)) {
@@ -40,7 +39,7 @@ function estimateHours(start, end) {
   return Math.round(((endMin - startMin) / 60) * 10) / 10;
 }
 
-function format12h(timeValue) {
+function format12h(timeValue: string): string {
   const [hourText, minuteText] = String(timeValue).split(':');
   const hourNumber = Number(hourText);
   const minuteNumber = Number(minuteText);
@@ -54,11 +53,11 @@ function format12h(timeValue) {
   return `${normalizedHour}:${String(minuteNumber).padStart(2, '0')} ${suffix}`;
 }
 
-function isoDate(date) {
+function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function formatDateLabel(dateStr) {
+function formatDateLabel(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00Z');
   const today = new Date();
   const todayStr = isoDate(today);
@@ -76,10 +75,11 @@ function formatDateLabel(dateStr) {
   return date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
 }
 
-function getLast7Days() {
-  const days = [];
+function getLast7Days(): string[] {
+  const days: string[] = [];
   const today = new Date();
-  for (let i = 6; i >= 0; i--) {
+  // Most recent first: hoy, ayer, etc.
+  for (let i = 0; i <= 6; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
     days.push(isoDate(date));
@@ -87,44 +87,68 @@ function getLast7Days() {
   return days;
 }
 
-function analyzeSleepPattern(entries) {
+function toNightMinutes(timeStr: string): number | null {
+  const [h, m] = String(timeStr).split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return null;
+  }
+  const total = h * 60 + m;
+  // Map early-morning bedtimes (00:00-11:59) after midnight night window.
+  return total < 12 * 60 ? total + 24 * 60 : total;
+}
+
+function minutesToHHMM(totalMinutes: number): string {
+  let mins = Math.round(totalMinutes) % (24 * 60);
+  if (mins < 0) mins += 24 * 60;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+interface DiaryEntryData {
+  id: string;
+  date: string;
+  start?: string;
+  end?: string;
+  total_hours: number;
+  created_at?: string;
+}
+
+function analyzeSleepPattern(entries: DiaryEntryData[]) {
   if (!entries || entries.length === 0) {
     return null;
   }
 
-  const recentEntries = entries.slice(0, 7).filter((e) => e.start && e.end);
+  const recentEntries = entries
+    .slice(0, 7)
+    .filter((e: DiaryEntryData) => e.start && e.end && Number.isFinite(Number(e.total_hours)));
   if (recentEntries.length === 0) return null;
 
-  const bedtimes = recentEntries.map((e) => {
-    const [h, m] = String(e.start).split(':').map(Number);
-    return h + m / 60;
-  });
+  const bedtimesNightMins = recentEntries
+    .map((e: DiaryEntryData) => toNightMinutes(e.start!))
+    .filter((v): v is number => v !== null);
+  if (bedtimesNightMins.length === 0) return null;
 
-  const waketimes = recentEntries.map((e) => {
-    const [h, m] = String(e.end).split(':').map(Number);
-    return h + m / 60;
-  });
+  const avgBedtimeNightMins =
+    bedtimesNightMins.reduce((a: number, b: number) => a + b, 0) / bedtimesNightMins.length;
+  const avgSleep = recentEntries.reduce((sum: number, e: DiaryEntryData) => sum + (e.total_hours || 0), 0) / recentEntries.length;
 
-  const avgBedtime = bedtimes.reduce((a, b) => a + b, 0) / bedtimes.length;
-  const avgWaketime = waketimes.reduce((a, b) => a + b, 0) / waketimes.length;
-  const avgSleep = recentEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0) / recentEntries.length;
+  // Base recommendation around observed bedtime, constrained to a realistic night window.
+  let recommendedNightMins = avgBedtimeNightMins;
+  const NIGHT_MIN = 20 * 60;      // 20:00
+  const NIGHT_MAX = 26 * 60 + 30; // 02:30 mapped as 26:30
+  recommendedNightMins = Math.max(NIGHT_MIN, Math.min(NIGHT_MAX, recommendedNightMins));
 
-  // Si se acuesta muy tarde (después de las 12am) pero se levanta temprano (antes de las 8am)
-  // y duerme poco (<7h), recomendar acostarse más temprano
-  let recommendedHour = Math.round(avgBedtime % 24);
-  let recommendedMin = Math.round((avgBedtime % 1) * 60);
-
-  if (avgBedtime > 22 && avgWaketime < 8 && avgSleep < 7) {
-    recommendedHour = Math.round((avgBedtime - 2) % 24);
-    if (recommendedHour < 0) recommendedHour += 24;
-    recommendedMin = Math.round((((avgBedtime - 2) % 1) || 0) * 60);
+  // If sleeping less than target, move bedtime earlier proportionally.
+  if (avgSleep < 7.5) {
+    const deficit = 7.5 - avgSleep;
+    const advanceMinutes = Math.min(120, Math.round(deficit * 45));
+    recommendedNightMins -= advanceMinutes;
+    recommendedNightMins = Math.max(NIGHT_MIN, recommendedNightMins);
   }
 
   return {
-    recommendedTime: `${String(recommendedHour).padStart(2, '0')}:${String(recommendedMin).padStart(
-      2,
-      '0',
-    )}`,
+    recommendedTime: minutesToHHMM(recommendedNightMins),
     avgSleepHours: avgSleep.toFixed(1),
     consistency: recentEntries.length >= 5 ? 'Alta' : recentEntries.length >= 3 ? 'Media' : 'Baja',
   };
@@ -134,7 +158,7 @@ function analyzeSleepPattern(entries) {
 // TIME PICKER COMPONENT
 // ============================================================================
 
-function SimpleTimePicker({ value, onChange, mode = 'hour' }) {
+function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; onChange: (val: number) => void; mode?: 'hour' | 'minute' }) {
   const values = mode === 'hour' ? Array.from({ length: 24 }, (_, i) => i) : Array.from({ length: 60 }, (_, i) => i);
   const itemSize = 50;
   const pickerHeight = 180;
@@ -177,7 +201,7 @@ function SimpleTimePicker({ value, onChange, mode = 'hour' }) {
 // SLEEP HISTORY BAR COMPONENT
 // ============================================================================
 
-function SleepHistoryBar({ entry, isSelected, onPress }) {
+function SleepHistoryBar({ entry, isSelected, onPress }: { entry: DiaryEntryData; isSelected: boolean; onPress: () => void }) {
   const hours = entry.total_hours || 0;
   const barHeight = Math.max(Math.min(hours * 20, 140), 30);
   const barColor = hours >= 7 ? palette.mint : hours >= 5 ? '#FF9F43' : '#FF6B6B';
@@ -208,13 +232,13 @@ function SleepHistoryBar({ entry, isSelected, onPress }) {
 // MAIN COMPONENT
 // ============================================================================
 
-export default function SleepDiaryScreen({ navigation }) {
-  const [diaryEntries, setDiaryEntries] = useState([]);
+export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTab, setSelectedTab] = useState('sleep');
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [tempStart, setTempStart] = useState('23:00');
   const [tempEnd, setTempEnd] = useState('07:00');
 
@@ -269,7 +293,7 @@ export default function SleepDiaryScreen({ navigation }) {
     }
   };
 
-  const handleTimeChange = (value, type, timeType) => {
+  const handleTimeChange = (value: number, type: 'hour' | 'minute', timeType: 'start' | 'end') => {
     const [h, m] = (timeType === 'start' ? tempStart : tempEnd).split(':').map(Number);
     const newH = type === 'hour' ? value : h;
     const newM = type === 'minute' ? value : m;
@@ -282,7 +306,7 @@ export default function SleepDiaryScreen({ navigation }) {
     }
   };
 
-  const parseTime = (timeStr) => {
+  const parseTime = (timeStr: string): { h: number; m: number } => {
     const [h, m] = timeStr.split(':').map(Number);
     return { h, m };
   };
@@ -334,7 +358,7 @@ export default function SleepDiaryScreen({ navigation }) {
                   <Text style={styles.sectionTitle}>Registro de hoy</Text>
                   <View style={styles.todayRecordContent}>
                     <View style={styles.todayRecordItem}>
-                      <Text style={styles.todayRecordLabel}>ÇCuantas horas dormiste?</Text>
+                      <Text style={styles.todayRecordLabel}>Cuantas horas dormiste</Text>
                       <Text style={styles.todayRecordValue}>{todayEntry.total_hours}h</Text>
                     </View>
                     <View style={styles.todayRecordDivider} />
@@ -676,7 +700,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 6,
   },
-  emptySubtest: {
+  emptySubtext: {
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
