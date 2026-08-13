@@ -35,8 +35,8 @@ jobs:
         id: build
         run: |
           eas build --platform android --profile preview --non-interactive --wait --json > build-output.json
-          APK_URL=$(node -e "const a=JSON.parse(require('fs').readFileSync('build-output.json','utf8')); const b=Array.isArray(a)?a[0]:a; const u=(b.artifacts&&(b.artifacts.applicationArchiveUrl||b.artifacts.buildUrl))||''; if(!u){console.error('No se encontro la URL del APK en el build'); process.exit(1)} console.log(u);")
-          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('build-output.json','utf8')); const b=Array.isArray(a)?a[0]:a; const aAr=b.artifacts||{}; const u=aAr.applicationArchiveUrl||aAr.buildUrl||''; const q=aAr.buildQrCodeUrl||''; if(!u){console.error('No se encontro la URL del APK en el build'); process.exit(1)} fs.appendFileSync(process.env.GITHUB_OUTPUT, 'apk_url='+u+'\n'+'qr_url='+q+'\n');"
+          echo "URL del APK y QR extraidos del build"
 
       - name: Descargar APK
         run: |
@@ -50,7 +50,13 @@ jobs:
           body: |
             ## Instalación (Android)
 
-            Descarga el archivo `asap-mobile-${{ github.ref_name }}.apk` (adjunto abajo) e instálalo en tu teléfono.
+            Escanea el QR con la cámara de tu teléfono para instalar el APK:
+
+            ![QR del APK](${{ steps.build.outputs.qr_url }})
+
+            O descarga el archivo `asap-mobile-${{ github.ref_name }}.apk` (adjunto abajo) e instálalo en tu teléfono.
+
+            > Para instalar el APK, tu teléfono debe tener permitido "Instalar apps de fuentes desconocidas".
 
             ## Detalles del build
 
