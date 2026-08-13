@@ -42,6 +42,18 @@ jobs:
         run: |
           curl -fsSL -o "asap-mobile-${{ github.ref_name }}.apk" "${{ steps.build.outputs.apk_url }}"
 
+      - name: Generar QR (fallback si EAS no lo devolvio)
+        id: qr
+        run: |
+          if [ -z "${{ steps.build.outputs.qr_url }}" ]; then
+            echo "EAS no devolvio buildQrCodeUrl, generando QR hacia la URL de descarga del APK"
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/asap-mobile-${{ github.ref_name }}.apk"
+            ENC=$(node -p "encodeURIComponent(process.argv[1])" "$DOWNLOAD_URL")
+            echo "qr_url=https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=$ENC" >> "$GITHUB_OUTPUT"
+          else
+            echo "qr_url=${{ steps.build.outputs.qr_url }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publicar GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -52,7 +64,7 @@ jobs:
 
             Escanea el QR con la cámara de tu teléfono para instalar el APK:
 
-            ![QR del APK](${{ steps.build.outputs.qr_url }})
+            ![QR del APK](${{ steps.qr.outputs.qr_url }})
 
             O descarga el archivo `asap-mobile-${{ github.ref_name }}.apk` (adjunto abajo) e instálalo en tu teléfono.
 
