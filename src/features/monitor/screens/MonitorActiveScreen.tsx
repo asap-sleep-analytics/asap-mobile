@@ -21,7 +21,7 @@ interface RouteParams {
 
 interface Props {
   route: { params?: RouteParams };
-  navigation: { replace: (screen: string) => void; goBack: () => void };
+  navigation: { replace: (screen: string, params?: Record<string, unknown>) => void; goBack: () => void };
 }
 
 interface EmergencySettings {
@@ -171,7 +171,6 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     });
   };
 
-  const shortSession = useMemo(() => (sessionId ? sessionId.slice(0, 8) : '--'), [sessionId]);
   const elapsedLabel = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
 
   const clearFragmentTimer = () => {
@@ -427,7 +426,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
   const bootstrapMonitoring = async () => {
     if (!sessionId) {
-      setStatusText('No se encontró session_id para monitoreo.');
+      setStatusText('No se encontró una sesión válida para iniciar el monitoreo.');
       setPermissionGranted(false);
       setIsPreparing(false);
       return;
@@ -493,14 +492,24 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         : computedAmbient;
 
     try {
-      await finishSleepSession(sessionId, {
+      const finished = await finishSleepSession(sessionId, {
         snore_count: estimatedSnore,
         apnea_events: estimatedApnea,
         ambient_noise_level: finalAmbientNoise,
       });
       setActiveSleepSessionId('');
+      navigation.replace('MonitorSummary', { session: finished || null });
     } catch {
-      // Error silencioso
+      setActiveSleepSessionId('');
+      navigation.replace('MonitorSummary', {
+        session: {
+          session_id: sessionId,
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          snore_count: estimatedSnore,
+          apnea_events: estimatedApnea,
+        },
+      });
     }
 
     try {
@@ -559,7 +568,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         <Text style={styles.timer}>{elapsedLabel}</Text>
       </View>
 
-      <Text style={styles.sessionText}>Sesion {shortSession}</Text>
+      <Text style={styles.sessionText}>Monitoreo en curso</Text>
       <Text style={styles.modeText}>
         {monitoringMode === 'cell_oximeter' ? 'Modo: Celular + oxímetro' : 'Modo: Solo celular'}
       </Text>
@@ -587,7 +596,11 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <Text style={styles.microText}>Errores de red: {silentErrors}</Text>
+      {silentErrors > 0 ? (
+        <Text style={styles.microText}>
+          Algunos fragmentos no pudieron subirse ahora; se reintentará al finalizar.
+        </Text>
+      ) : null}
 
       {isPreparing ? (
         <View style={styles.loadingWrap}>
@@ -598,7 +611,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
       {predictions.length > 0 && (
         <View style={styles.apneaSection}>
-          <Text style={styles.apneaSectionTitle}>Predicciones de Apnea</Text>
+          <Text style={styles.apneaSectionTitle}>Análisis de la noche</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -611,7 +624,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
             ))}
           </ScrollView>
           <Text style={styles.spo2Info}>
-            SpO2: {spo2Values.length > 0 ? spo2Values.join(', ') : 'N/A'}
+            Oxigenación: {spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : 'en espera'}
           </Text>
         </View>
       )}

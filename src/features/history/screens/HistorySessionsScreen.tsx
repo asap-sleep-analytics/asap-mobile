@@ -143,7 +143,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
 
       <div class="grid">
         <div class="card"><div class="label">Noches</div><div class="value">${metrics.noches}</div></div>
-        <div class="card"><div class="label">Score Promedio</div><div class="value">${metrics.score}</div></div>
+        <div class="card"><div class="label">Puntaje Promedio</div><div class="value">${metrics.score}</div></div>
         <div class="card"><div class="label">Total Apnea</div><div class="value">${metrics.apnea}</div></div>
         <div class="card"><div class="label">Total Ronquido</div><div class="value">${metrics.ronquido}</div></div>
       </div>
@@ -156,7 +156,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
             <th>Inicio</th>
             <th>Fin</th>
             <th>Duracion</th>
-            <th>Score</th>
+            <th>Puntaje</th>
             <th>Apnea</th>
             <th>Ronquido</th>
           </tr>
@@ -301,8 +301,8 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.badge}>Historial</Text>
-        <Text style={styles.title}>Sesiones registradas</Text>
-        <Text style={styles.subtitle}>Vista cronológica de tus noches procesadas por A.S.A.P.</Text>
+        <Text style={styles.title}>Tus noches registradas</Text>
+        <Text style={styles.subtitle}>Consulta el detalle de cada sesión monitoreada por A.S.A.P.</Text>
 
         <GlassCard style={styles.summaryCard}>
           <View style={styles.metricsRow}>
@@ -311,7 +311,7 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
               <Text style={styles.metricValue}>{completedSessions.length}</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Score prom.</Text>
+              <Text style={styles.metricLabel}>Puntaje prom.</Text>
               <Text style={styles.metricValue}>{averageScore}</Text>
             </View>
             <View style={styles.metricCard}>
@@ -352,7 +352,7 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
         {activeSession ? (
           <GlassCard style={styles.activeCard}>
             <Text style={styles.activeTitle}>Sesión en curso</Text>
-            <Text style={styles.activeValue}>{activeSession.session_id?.slice(0, 8) || '--'}</Text>
+            <Text style={styles.activeValue}>Monitoreo activo</Text>
             <Text style={styles.activeHint}>Iniciada: {formatDateTime(activeSession.start_time)}</Text>
           </GlassCard>
         ) : null}
@@ -362,13 +362,13 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
             <ActivityIndicator color={palette.mint} style={styles.loader} />
           ) : completedSessions.length === 0 ? (
             <GlassCard>
-              <Text style={styles.emptyText}>Todavía no hay sesiones finalizadas para mostrar.</Text>
+              <Text style={styles.emptyText}>Aún no hay noches finalizadas para mostrar. Inicia tu primer monitoreo.</Text>
             </GlassCard>
           ) : (
             completedSessions.map((session) => (
               <GlassCard key={session.session_id} style={styles.sessionCard}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.sessionId}>{session.session_id?.slice(0, 8) || '--'}</Text>
+                  <Text style={styles.sessionDate}>{formatDateTime(session.start_time)}</Text>
                   <Text style={styles.scoreChip}>{session.sleep_score ?? '--'}</Text>
                 </View>
 
@@ -540,6 +540,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 14,
     letterSpacing: 0.6,
+  },
+  sessionDate: {
+    color: palette.textPrimary,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
   },
   scoreChip: {
     color: palette.mint,

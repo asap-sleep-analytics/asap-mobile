@@ -37,9 +37,34 @@ export function isAuthenticated() {
   return authToken.length > 0;
 }
 
+const HTTP_ERROR_MESSAGES = {
+  400: 'Revisa la información ingresada e inténtalo de nuevo.',
+  401: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+  403: 'No tienes permiso para realizar esta acción.',
+  404: 'No encontramos lo que buscabas.',
+  409: 'Ya existe un registro con esos datos.',
+  422: 'Algunos datos no son válidos. Revísalos e inténtalo de nuevo.',
+  429: 'Hiciste demasiadas solicitudes. Espera unos segundos e inténtalo de nuevo.',
+  500: 'Ocurrió un error en el servidor. Inténtalo de nuevo en unos minutos.',
+  502: 'El servidor no está disponible en este momento. Inténtalo de nuevo más tarde.',
+  503: 'Estamos en mantenimiento. Inténtalo de nuevo en unos minutos.',
+  504: 'El servidor tardó demasiado en responder. Verifica tu conexión e inténtalo de nuevo.',
+};
+
 export function getApiErrorMessage(error, fallback = 'No fue posible completar la solicitud.') {
+  const status = error?.response?.status;
+  if (typeof status === 'number' && HTTP_ERROR_MESSAGES[status]) {
+    return HTTP_ERROR_MESSAGES[status];
+  }
   if (error?.response?.data?.detail) {
-    return error.response.data.detail;
+    const detail = error.response.data.detail;
+    return typeof detail === 'string' ? detail : fallback;
+  }
+  if (error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT') {
+    return 'El servidor tardó demasiado en responder. Verifica tu conexión a internet e inténtalo de nuevo.';
+  }
+  if (error?.code === 'ERR_NETWORK' || error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
+    return 'No pudimos conectarnos con el servidor. Verifica tu conexión a internet e inténtalo de nuevo.';
   }
   if (error?.message) {
     return error.message;

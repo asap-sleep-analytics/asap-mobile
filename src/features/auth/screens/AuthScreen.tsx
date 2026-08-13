@@ -67,8 +67,8 @@ export default function AuthScreen() {
 	return (
 		<AmbientBackdrop>
 			<ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-				<Text style={styles.badge}>Acceso de plataforma</Text>
-				<Text style={styles.title}>Iniciar sesión o registrarme</Text>
+				<Text style={styles.badge}>Acceso</Text>
+				<Text style={styles.title}>Inicia sesión o crea tu cuenta</Text>
 				<Text style={styles.subtitle}>
 					{isRegisterMode
 						? 'Crea tu cuenta para comenzar a monitorear tu sueño de forma simple y segura.'
@@ -82,7 +82,7 @@ export default function AuthScreen() {
 							onPress={() => setMode('login')}
 						>
 							<Text style={[styles.modeButtonText, mode === 'login' ? styles.modeButtonTextActive : null]}>
-								Login
+								Iniciar sesión
 							</Text>
 						</Pressable>
 						<Pressable
@@ -109,7 +109,7 @@ export default function AuthScreen() {
 						</>
 					) : null}
 
-					<Text style={styles.label}>Correo</Text>
+					<Text style={styles.label}>Correo electrónico</Text>
 					<TextInput
 						value={email}
 						onChangeText={setEmail}
@@ -120,13 +120,13 @@ export default function AuthScreen() {
 						placeholderTextColor={palette.textMuted}
 					/>
 
-					<Text style={styles.label}>Contrasena</Text>
+					<Text style={styles.label}>Contraseña</Text>
 					<TextInput
 						value={password}
 						onChangeText={setPassword}
 						style={styles.input}
 						secureTextEntry
-						placeholder="Minimo 8 caracteres"
+						placeholder="Mínimo 8 caracteres"
 						placeholderTextColor={palette.textMuted}
 					/>
 
@@ -163,7 +163,7 @@ export default function AuthScreen() {
 							</View>
 
 							<View style={styles.switchRow}>
-								<Text style={styles.switchLabel}>Acepto que no reemplaza diagnostico medico</Text>
+								<Text style={styles.switchLabel}>Acepto que no reemplaza el diagnóstico médico</Text>
 								<Switch
 									value={aceptaDisclaimerMedico}
 									onValueChange={setAceptaDisclaimerMedico}
