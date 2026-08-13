@@ -152,7 +152,7 @@ export async function listSleepSessions(limit = 20) {
   const { data } = await api.get('/api/v1/sleep/sesiones', {
     params: { limit },
   });
-  return data;
+  return Array.isArray(data) ? data : data?.items || [];
 }
 
 export async function listSleepDetections(sessionId, limit = 720) {
