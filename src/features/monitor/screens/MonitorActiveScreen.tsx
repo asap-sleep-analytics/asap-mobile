@@ -521,7 +521,6 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     }
 
     await restoreBrightness();
-    navigation.replace('MonitorCenter');
   };
 
   useEffect(() => {
