@@ -322,6 +322,14 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
             {refreshing ? <ActivityIndicator color={palette.mint} size="small" /> : null}
           </View>
+
+          {latestSession?.analysis_label ? (
+            <Text style={styles.sourceNote}>{latestSession.analysis_label}</Text>
+          ) : latestSession && !latestSession.model_source ? (
+            <Text style={styles.sourceNote}>
+              Esta noche se registró sin análisis de audio; las métricas son estimaciones del teléfono.
+            </Text>
+          ) : null}
         </GlassCard>
 
         <View style={styles.featuresRow}>
@@ -529,6 +537,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+  },
+  sourceNote: {
+    marginTop: 12,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   ghostButton: {
     borderRadius: 12,

@@ -4,6 +4,7 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import GlassCard from '../../../components/GlassCard';
+import SectionBadge from '../../../components/SectionBadge';
 import { AppContext } from '../../../context/AppContext';
 import { getApiErrorMessage, listSleepSessions, startSleepSession } from '../../../services/api';
 import {
@@ -260,7 +261,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.badge}>Monitor de sueño</Text>
+      <SectionBadge label="Monitor de sueño" />
       <Text style={styles.title}>Tu descanso, en tus manos</Text>
       <Text style={styles.subtitle}>Inicia el monitoreo nocturno o registra manualmente tus horas de sueño.</Text>
 

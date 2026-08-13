@@ -7,60 +7,12 @@ import * as Sharing from 'expo-sharing';
 
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
+import LoadingState from '../../../components/LoadingState';
+import SectionBadge from '../../../components/SectionBadge';
 import { getApiErrorMessage, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
 import type { SleepSessionRecord } from '../../../types';
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) {
-    return '--';
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return '--';
-  }
-
-  return parsed.toLocaleString('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatDurationMinutes(startTime: string | null | undefined, endTime: string | null | undefined) {
-  if (!startTime || !endTime) {
-    return '--';
-  }
-
-  const start = Date.parse(startTime);
-  const end = Date.parse(endTime);
-
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-    return '--';
-  }
-
-  const totalMinutes = Math.round((end - start) / 60000);
-  if (totalMinutes < 60) {
-    return `${totalMinutes} min`;
-  }
-
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  return `${hours} h ${mins} min`;
-}
-
-function toIsoDate(value: string | null | undefined) {
-  if (!value) {
-    return '--';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '--';
-  }
-  return date.toISOString().slice(0, 16).replace('T', ' ');
-}
+import { formatDateTime, formatDurationMinutes, toIsoDate } from '../../../utils/dates';
 
 function escapeCsv(value: unknown) {
   const text = String(value ?? '');
@@ -300,7 +252,7 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.badge}>Historial</Text>
+        <SectionBadge label="Historial" />
         <Text style={styles.title}>Tus noches registradas</Text>
         <Text style={styles.subtitle}>Consulta el detalle de cada sesión monitoreada por A.S.A.P.</Text>
 
@@ -358,9 +310,7 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
         ) : null}
 
         <View style={styles.listWrap}>
-          {loading ? (
-            <ActivityIndicator color={palette.mint} style={styles.loader} />
-          ) : completedSessions.length === 0 ? (
+          {loading ? <LoadingState message="Cargando tu historial..." /> : completedSessions.length === 0 ? (
             <GlassCard>
               <Text style={styles.emptyText}>Aún no hay noches finalizadas para mostrar. Inicia tu primer monitoreo.</Text>
             </GlassCard>

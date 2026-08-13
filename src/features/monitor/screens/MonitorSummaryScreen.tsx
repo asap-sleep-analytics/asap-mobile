@@ -1,11 +1,15 @@
 import React, { useContext } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
+import AppButton from '../../../components/AppButton';
 import GlassCard from '../../../components/GlassCard';
+import MetricCard from '../../../components/MetricCard';
+import SectionBadge from '../../../components/SectionBadge';
 import { AppContext } from '../../../context/AppContext';
 import { fonts, palette } from '../../../theme/tokens';
 import type { SleepSessionRecord } from '../../../types';
+import { formatDurationMinutes } from '../../../utils/dates';
 
 interface Props {
   route: { params?: { session?: SleepSessionRecord | null } };
@@ -13,24 +17,6 @@ interface Props {
     goBack: () => void;
     getParent: () => { navigate: (screen: string) => void } | undefined;
   };
-}
-
-function formatDuration(startTime?: string | null, endTime?: string | null): string {
-  if (!startTime || !endTime) {
-    return '--';
-  }
-  const start = Date.parse(startTime);
-  const end = Date.parse(endTime);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-    return '--';
-  }
-  const minutes = Math.round((end - start) / 60000);
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hours} h ${mins} min` : `${hours} h`;
 }
 
 function getConclusion(score: number, apnea: number): { label: string; color: string; message: string } {
@@ -77,7 +63,7 @@ export default function MonitorSummaryScreen({ route, navigation }: Props) {
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.badge}>Monitoreo finalizado</Text>
+        <SectionBadge label="Monitoreo finalizado" />
         <Text style={styles.title}>Resumen de tu noche</Text>
         <Text style={styles.subtitle}>
           Tu grabación se guardó en el historial. Esto es lo que registramos esta sesión.
@@ -93,34 +79,27 @@ export default function MonitorSummaryScreen({ route, navigation }: Props) {
         </GlassCard>
 
         <View style={styles.metricRow}>
-          <GlassCard style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Duración</Text>
-            <Text style={styles.metricValue}>{formatDuration(session?.start_time, session?.end_time)}</Text>
-          </GlassCard>
-          <GlassCard style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Apneas</Text>
-            <Text style={[styles.metricValue, { color: apnea > 0 ? palette.danger : palette.mint }]}>{apnea}</Text>
-          </GlassCard>
-          <GlassCard style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Ronquidos</Text>
-            <Text style={styles.metricValue}>{snore}</Text>
-          </GlassCard>
+          <MetricCard label="Duración" value={formatDurationMinutes(session?.start_time, session?.end_time)} />
+          <MetricCard
+            label="Apneas"
+            value={String(apnea)}
+            valueColor={apnea > 0 ? palette.danger : palette.mint}
+          />
+          <MetricCard label="Ronquidos" value={String(snore)} />
         </View>
+
+        {session?.analysis_label ? (
+          <Text style={styles.sourceNote}>{session.analysis_label}</Text>
+        ) : session?.model_source === null ? (
+          <Text style={styles.sourceNote}>
+            Esta sesión no pudo analizarse con audio; las métricas son estimaciones locales del teléfono.
+          </Text>
+        ) : null}
 
         <GlassCard style={styles.actionsCard}>
           <Text style={styles.actionsHint}>Puedes ver el detalle completo y exportar tu reporte desde el historial.</Text>
-          <Pressable
-            onPress={handleGoToHistory}
-            style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null]}
-          >
-            <Text style={styles.primaryButtonText}>Ver mi historial</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleBackToMonitor}
-            style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}
-          >
-            <Text style={styles.ghostButtonText}>Volver al monitor</Text>
-          </Pressable>
+          <AppButton label="Ver mi historial" onPress={handleGoToHistory} style={styles.primaryButton} />
+          <AppButton label="Volver al monitor" onPress={handleBackToMonitor} variant="ghost" style={styles.ghostButton} />
         </GlassCard>
 
         <Text style={styles.disclaimer}>
@@ -137,20 +116,6 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 28,
     gap: 12,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.09)',
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
   title: {
     marginTop: 8,
@@ -208,26 +173,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  metricCard: {
-    flex: 1,
-    alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-  },
-  metricLabel: {
-    color: palette.textMuted,
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-  },
-  metricValue: {
-    marginTop: 6,
-    color: palette.textPrimary,
-    fontFamily: fonts.headingMedium,
-    fontSize: 22,
+  sourceNote: {
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   actionsCard: {
     borderColor: 'rgba(149,178,255,0.34)',
@@ -240,32 +191,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    borderRadius: 14,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    paddingVertical: 13,
-  },
-  primaryButtonText: {
-    color: '#03110C',
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
+    width: '100%',
   },
   ghostButton: {
     marginTop: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  ghostButtonText: {
-    color: palette.textPrimary,
-    fontFamily: fonts.body,
-    fontSize: 14,
-  },
-  pressed: {
-    opacity: 0.82,
+    width: '100%',
   },
   disclaimer: {
     color: palette.warning,
