@@ -1,0 +1,60 @@
+name: Build APK y publicar Release beta
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK con EAS
+        id: build
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build-output.json
+          APK_URL=$(node -e "const a=JSON.parse(require('fs').readFileSync('build-output.json','utf8')); const b=Array.isArray(a)?a[0]:a; const u=(b.artifacts&&(b.artifacts.applicationArchiveUrl||b.artifacts.buildUrl))||''; if(!u){console.error('No se encontro la URL del APK en el build'); process.exit(1)} console.log(u);")
+          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Descargar APK
+        run: |
+          curl -fsSL -o "asap-mobile-${{ github.ref_name }}.apk" "${{ steps.build.outputs.apk_url }}"
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "asap-mobile-${{ github.ref_name }}.apk"
+          generate_release_notes: true
+          body: |
+            ## Instalación (Android)
+
+            Descarga el archivo `asap-mobile-${{ github.ref_name }}.apk` (adjunto abajo) e instálalo en tu teléfono.
+
+            ## Detalles del build
+
+            - Perfil EAS: `preview`
+            - Tag: `${{ github.ref_name }}`
+            - Commit: ${{ github.sha }}
+            - App: `asap-mobile`
