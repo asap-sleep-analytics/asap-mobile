@@ -20,6 +20,7 @@ import DashboardHomeScreen from './src/features/dashboard/screens/DashboardHomeS
 import HistorySessionsScreen from './src/features/history/screens/HistorySessionsScreen';
 import MonitorActiveScreen from './src/features/monitor/screens/MonitorActiveScreen';
 import MonitorControlScreen from './src/features/monitor/screens/MonitorControlScreen';
+import MonitorSummaryScreen from './src/features/monitor/screens/MonitorSummaryScreen';
 import OximeterConnectScreen from './src/features/monitor/screens/OximeterConnectScreen';
 import SleepDiaryScreen from './src/features/monitor/screens/SleepDiaryScreen';
 import EmergencyAlertsScreen from './src/features/profile/screens/EmergencyAlertsScreen';
@@ -87,6 +88,11 @@ function MonitorStackNavigator() {
         name="MonitorActive"
         component={MonitorActiveScreen}
         options={{ headerShown: false }}
+      />
+      <MonitorStack.Screen
+        name="MonitorSummary"
+        component={MonitorSummaryScreen}
+        options={{ title: 'Resumen de la noche' }}
       />
       <MonitorStack.Screen
         name="SleepDiary"
@@ -227,7 +233,7 @@ function AppNavigationGate() {
     return (
       <View style={styles.loaderWrap}>
         <ActivityIndicator color={palette.mint} size="large" />
-        <Text style={styles.loaderText}>Restaurando sesion segura...</Text>
+        <Text style={styles.loaderText}>Restaurando tu sesión segura...</Text>
       </View>
     );
   }

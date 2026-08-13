@@ -53,7 +53,7 @@ function getScoreVisual(score: number, apneaEvents: number): ScoreVisual {
   if (score >= 65) {
     return { label: 'Vigilancia', color: palette.warning, subtitle: 'Ritmo intermedio' };
   }
-  return { label: 'Alerta', color: palette.danger, subtitle: 'Sueno fragmentado' };
+  return { label: 'Alerta', color: palette.danger, subtitle: 'Sueño fragmentado' };
 }
 
 function resolveSessionStartMs(sessionStart: string | null | undefined, fallbackCount: number): number {
@@ -146,10 +146,10 @@ function LoadingState({ pulse }: LoadingStateProps) {
   return (
     <GlassCard style={styles.loadingCard as any}>
       <View style={styles.loadingHeaderRow}>
-        <Text style={styles.sectionTitle}>Sincronizando con Neon</Text>
+        <Text style={styles.sectionTitle}>Preparando tu resumen</Text>
         <ActivityIndicator color={palette.mint} size="small" />
       </View>
-      <Text style={styles.loadingSubtitle}>Preparando tu ultima noche procesada por ml_service...</Text>
+      <Text style={styles.loadingSubtitle}>Cargando la información de tu última noche...</Text>
       <Animated.View style={[styles.loadingBarLarge, { opacity: pulse }]} />
       <Animated.View style={[styles.loadingBarMedium, { opacity: pulse }]} />
       <Animated.View style={[styles.loadingBarSmall, { opacity: pulse }]} />
@@ -296,7 +296,7 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
                 inActiveStrokeWidth={isCompact ? 12 : 14}
                 progressValueColor={palette.textPrimary}
                 progressValueStyle={{ ...styles.scoreValue, ...(isCompact ? styles.scoreValueCompact : {}) }}
-                title="Sleep Score"
+                title="Puntuación de sueño"
                 titleStyle={styles.scoreTitle}
                 subtitle={scoreVisual.label}
                 subtitleStyle={{ ...styles.scoreSubtitle, color: scoreVisual.color }}
@@ -322,28 +322,36 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
             {refreshing ? <ActivityIndicator color={palette.mint} size="small" /> : null}
           </View>
+
+          {latestSession?.analysis_label ? (
+            <Text style={styles.sourceNote}>{latestSession.analysis_label}</Text>
+          ) : latestSession && !latestSession.model_source ? (
+            <Text style={styles.sourceNote}>
+              Esta noche se registró sin análisis de audio; las métricas son estimaciones del teléfono.
+            </Text>
+          ) : null}
         </GlassCard>
 
         <View style={styles.featuresRow}>
           <View style={[styles.featureCard, styles.apneaCard, isCompact ? styles.featureCardCompact : null]}>
-            <Text style={styles.featureLabel}>Eventos apnea</Text>
+            <Text style={styles.featureLabel}>Eventos de apnea</Text>
             <Text style={[styles.featureValue, styles.apneaValue]}>{apneaCount}</Text>
-            <Text style={styles.featureHint}>Alertas detectadas por el pipeline de inferencia.</Text>
+            <Text style={styles.featureHint}>Alteraciones respiratorias detectadas en la noche.</Text>
           </View>
 
           <View style={[styles.featureCard, styles.snoreCard, isCompact ? styles.featureCardCompact : null]}>
-            <Text style={styles.featureLabel}>Eventos ronquido</Text>
+            <Text style={styles.featureLabel}>Eventos de ronquido</Text>
             <Text style={[styles.featureValue, styles.snoreValue]}>{snoreCount}</Text>
-            <Text style={styles.featureHint}>Conteo consolidado de la sesión finalizada.</Text>
+            <Text style={styles.featureHint}>Conteo de ronquidos de la última noche.</Text>
           </View>
         </View>
 
         <GlassCard>
           <View style={styles.sectionHeadRow}>
             <Text style={styles.sectionTitle}>Continuidad de la noche</Text>
-            <Text style={styles.sectionCaption}>
-              {detections.length > 0 ? 'Fuente: sleep_detection_logs' : 'Fuente: resumen de sesión'}
-            </Text>
+          <Text style={styles.sectionCaption}>
+            {detections.length > 0 ? 'Última noche registrada' : 'Resumen de la última sesión'}
+          </Text>
           </View>
 
           <View style={styles.chartWrap}>
@@ -529,6 +537,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+  },
+  sourceNote: {
+    marginTop: 12,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   ghostButton: {
     borderRadius: 12,

@@ -1,0 +1,66 @@
+name: Build APK y publicar Release beta
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK con EAS
+        id: build
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build-output.json
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('build-output.json','utf8')); const b=Array.isArray(a)?a[0]:a; const aAr=b.artifacts||{}; const u=aAr.applicationArchiveUrl||aAr.buildUrl||''; const q=aAr.buildQrCodeUrl||''; if(!u){console.error('No se encontro la URL del APK en el build'); process.exit(1)} fs.appendFileSync(process.env.GITHUB_OUTPUT, 'apk_url='+u+'\n'+'qr_url='+q+'\n');"
+          echo "URL del APK y QR extraidos del build"
+
+      - name: Descargar APK
+        run: |
+          curl -fsSL -o "asap-mobile-${{ github.ref_name }}.apk" "${{ steps.build.outputs.apk_url }}"
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "asap-mobile-${{ github.ref_name }}.apk"
+          generate_release_notes: true
+          body: |
+            ## Instalación (Android)
+
+            Escanea el QR con la cámara de tu teléfono para instalar el APK:
+
+            ![QR del APK](${{ steps.build.outputs.qr_url }})
+
+            O descarga el archivo `asap-mobile-${{ github.ref_name }}.apk` (adjunto abajo) e instálalo en tu teléfono.
+
+            > Para instalar el APK, tu teléfono debe tener permitido "Instalar apps de fuentes desconocidas".
+
+            ## Detalles del build
+
+            - Perfil EAS: `preview`
+            - Tag: `${{ github.ref_name }}`
+            - Commit: ${{ github.sha }}
+            - App: `asap-mobile`

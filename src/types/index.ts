@@ -47,6 +47,9 @@ export interface SleepSessionRecord {
   avg_oxygen: number | null;
   ambient_noise_level: number | null;
   sleep_score: number | null;
+  model_source: string | null;
+  model_version: string | null;
+  analysis_label: string | null;
   continuidad: SleepContinuityPoint[];
   created_at: string;
 }

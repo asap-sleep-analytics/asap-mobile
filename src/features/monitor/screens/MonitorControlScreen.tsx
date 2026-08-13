@@ -4,6 +4,7 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import GlassCard from '../../../components/GlassCard';
+import SectionBadge from '../../../components/SectionBadge';
 import { AppContext } from '../../../context/AppContext';
 import { getApiErrorMessage, listSleepSessions, startSleepSession } from '../../../services/api';
 import {
@@ -260,9 +261,9 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.badge}>Monitor de sueño</Text>
-      <Text style={styles.title}>Monitoreo y registro</Text>
-      <Text style={styles.subtitle}>Controla tu sesión nocturna y registra tus horas en un apartado dedicado.</Text>
+      <SectionBadge label="Monitor de sueño" />
+      <Text style={styles.title}>Tu descanso, en tus manos</Text>
+      <Text style={styles.subtitle}>Inicia el monitoreo nocturno o registra manualmente tus horas de sueño.</Text>
 
       <View style={styles.metricGrid}>
         <View style={styles.metricCard}>
@@ -270,12 +271,12 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
           <Text style={styles.metricValue}>{openSession ? 'Sí' : 'No'}</Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Último score</Text>
+          <Text style={styles.metricLabel}>Último puntaje</Text>
           <Text style={styles.metricValue}>{latestFinished?.sleep_score ?? '--'}</Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Configuración rápida del monitoreo</Text>
+      <Text style={styles.sectionTitle}>Configuración rápida</Text>
       <GlassCard style={styles.modeCard}>
         <Text style={styles.modeTitle}>Modo de monitoreo</Text>
         <View style={styles.modeRow}>
@@ -308,8 +309,8 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         </View>
         <Text style={styles.modeHint}>
           {monitorMode === 'cell_only'
-            ? 'Usa únicamente el micrófono del celular para el monitoreo nocturno.'
-            : `Estado oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || 'OK'})` : 'Sin conexión'}`}
+            ? 'Usa solo el micrófono del celular para el monitoreo nocturno.'
+            : `Estado del oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || 'OK'})` : 'Sin conexión'}`}
         </Text>
         <Pressable
           onPress={() => navigation.navigate('OximeterConnect')}
@@ -319,7 +320,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         </Pressable>
       </GlassCard>
 
-      <Text style={styles.label}>Ruido ambiente objetivo (dB)</Text>
+      <Text style={styles.label}>Ruido ambiente objetivo (en decibeles)</Text>
       <TextInput
         value={ambientNoise}
         onChangeText={(value: string) => {
@@ -335,7 +336,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
       <View style={styles.noiseMetaRow}>
         <Text style={styles.noiseHint}>
           {isCalibratingNoise
-            ? `Midiendo ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
+            ? `Midiendo el ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
             : lastNoiseCalibrationAt
             ? `Valor automático (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)})`
             : 'Puedes ajustar el valor manualmente si lo deseas.'}
@@ -350,7 +351,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
           ]}
         >
           <Text style={styles.recalibrateButtonText}>
-            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Recalibrar'}
+            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Medir de nuevo'}
           </Text>
         </Pressable>
       </View>
@@ -363,18 +364,18 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         {working ? (
           <ActivityIndicator color="#03110C" />
         ) : (
-          <Text style={styles.primaryButtonText}>
-            {openSession
-              ? 'Continuar monitoreo'
-              : monitorMode === 'cell_only'
-              ? 'Iniciar monitoreo solo celular'
-              : 'Iniciar monitoreo celular + oxímetro'}
-          </Text>
+            <Text style={styles.primaryButtonText}>
+              {openSession
+                ? 'Continuar monitoreo'
+                : monitorMode === 'cell_only'
+                ? 'Iniciar monitoreo con el celular'
+                : 'Iniciar monitoreo celular + oxímetro'}
+            </Text>
         )}
       </Pressable>
 
       <GlassCard style={styles.diaryPromoCard}>
-        <Text style={styles.diaryPromoTitle}>Registro de horas de sueño</Text>
+        <Text style={styles.diaryPromoTitle}>Horas de sueño</Text>
         
         {sleepDiaryEntries.length > 0 && (
           <View style={styles.diaryList}>
@@ -417,7 +418,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Antes de iniciar el monitoreo</Text>
             <Text style={styles.modalBullet}>• Puedes salir de la app: el proceso continuará por intervalos.</Text>
-            <Text style={styles.modalBullet}>• No se graba toda la noche continua; se capturan fragmentos de tiempo.</Text>
+            <Text style={styles.modalBullet}>• Se capturan fragmentos cortos de audio, no toda la noche de forma continua.</Text>
             <Text style={styles.modalBullet}>• Mantén el teléfono cerca de la cama y con batería suficiente.</Text>
             <Text style={styles.modalBullet}>• Evita cubrir el micrófono y reduce ruidos fuertes.</Text>
 
