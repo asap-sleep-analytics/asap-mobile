@@ -18,7 +18,7 @@ import {
   getEmergencyAlertSettings,
   saveEmergencyAlertSettings,
 } from '../../../services/localHealth';
-import type { EmergencyAlertSettings } from '../../../types';
+import type { EmergencyAlertSettings, EmergencyContact } from '../../../types';
 import { fonts, palette } from '../../../theme/tokens';
 
 interface ContactPickerItem {
@@ -26,6 +26,9 @@ interface ContactPickerItem {
   name: string;
   phoneNumbers?: { number: string }[];
   emails?: { email: string }[];
+  phone?: string;
+  email?: string;
+  initials?: string;
 }
 
 const THRESHOLD_OPTIONS = [6, 8, 10, 12] as const;
@@ -51,14 +54,19 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     load();
   }, []);
 
-  const updateMethod = (methodKey, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      methods: {
-        ...(prev?.methods || {}),
-        [methodKey]: value,
-      },
-    }));
+  const updateMethod = (methodKey: keyof EmergencyAlertSettings['methods'], value: boolean) => {
+    setSettings((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      return {
+        ...prev,
+        methods: {
+          ...prev.methods,
+          [methodKey]: value,
+        },
+      };
+    });
   };
 
   const save = async () => {
@@ -79,14 +87,23 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     }
   };
 
-  const normalizeContact = (contact) => {
+  type RawContact = {
+    id?: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    phoneNumbers?: { number?: string }[];
+    emails?: { email?: string }[];
+  };
+
+  const normalizeContact = (contact: RawContact): ContactPickerItem => {
     const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
     const displayName = contact.name || fullName || 'Contacto sin nombre';
     const phone = contact.phoneNumbers?.[0]?.number || '';
     const email = contact.emails?.[0]?.email || '';
 
     return {
-      id: contact.id,
+      id: contact.id || '',
       name: displayName,
       phone,
       email,
@@ -99,11 +116,11 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     };
   };
 
-    const contactKey = (contact) => String(contact?.id || contact?.phone || contact?.email || contact?.name || '').trim().toLowerCase();
+    const contactKey = (contact: ContactPickerItem | EmergencyContact) => String(contact?.id || contact?.phone || contact?.email || contact?.name || '').trim().toLowerCase();
 
-    const resolveSavedContact = (savedContact) => {
+    const resolveSavedContact = (savedContact: EmergencyContact): ContactPickerItem => {
       if (!savedContact) {
-        return savedContact;
+        return savedContact as ContactPickerItem;
       }
 
       const match = availableContacts.find((contact) => {
@@ -180,7 +197,11 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     const selectedRows = availableContacts.filter((contact) => selectedContactIds.includes(contact.id));
 
     setSettings((prev) => {
-      const rows = Array.isArray(prev?.contacts) ? prev.contacts : [];
+      if (!prev) {
+        return prev;
+      }
+
+      const rows = Array.isArray(prev.contacts) ? prev.contacts : [];
 
       const merged = [...rows];
       selectedRows.forEach((contact) => {
@@ -199,11 +220,16 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     setSelectedContactIds([]);
   };
 
-  const removeContact = (contactToRemove) => {
-    setSettings((prev) => ({
-      ...prev,
-      contacts: (prev?.contacts || []).filter((row) => contactKey(row) !== contactKey(contactToRemove)),
-    }));
+  const removeContact = (contactToRemove: ContactPickerItem | EmergencyContact) => {
+    setSettings((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      return {
+        ...prev,
+        contacts: prev.contacts.filter((row) => contactKey(row) !== contactKey(contactToRemove)),
+      };
+    });
   };
 
   if (loading || !settings) {
@@ -227,7 +253,7 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
         <GlassCard>
           <View style={styles.rowBetween}>
             <Text style={styles.label}>Sistema de alertas</Text>
-            <Switch value={settings.enabled} onValueChange={(value) => setSettings((prev) => ({ ...prev, enabled: value }))} />
+            <Switch value={settings.enabled} onValueChange={(value) => setSettings((prev) => (prev ? { ...prev, enabled: value } : prev))} />
           </View>
 
           <Text style={styles.sectionTitle}>Umbral de severidad</Text>
@@ -237,7 +263,7 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
               return (
                 <Pressable
                   key={`threshold-${value}`}
-                  onPress={() => setSettings((prev) => ({ ...prev, severe_threshold_events: value }))}
+                  onPress={() => setSettings((prev) => (prev ? { ...prev, severe_threshold_events: value } : prev))}
                   style={({ pressed }) => [styles.chip, selected ? styles.chipSelected : null, pressed ? styles.pressed : null]}
                 >
                   <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{value} eventos</Text>
@@ -254,7 +280,7 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
           <View style={styles.optionRow}><Text style={styles.optionText}>WhatsApp</Text><Switch value={!!settings.methods.whatsapp} onValueChange={(v) => updateMethod('whatsapp', v)} /></View>
           <View style={styles.optionRow}><Text style={styles.optionText}>SMS</Text><Switch value={!!settings.methods.sms} onValueChange={(v) => updateMethod('sms', v)} /></View>
           <View style={styles.optionRow}><Text style={styles.optionText}>Correo</Text><Switch value={!!settings.methods.email} onValueChange={(v) => updateMethod('email', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>Auto envío sin confirmar</Text><Switch value={!!settings.auto_dispatch} onValueChange={(v) => setSettings((prev) => ({ ...prev, auto_dispatch: v }))} /></View>
+          <View style={styles.optionRow}><Text style={styles.optionText}>Auto envío sin confirmar</Text><Switch value={!!settings.auto_dispatch} onValueChange={(v) => setSettings((prev) => (prev ? { ...prev, auto_dispatch: v } : prev))} /></View>
         </GlassCard>
 
         <GlassCard>

@@ -153,7 +153,7 @@ export async function submitSleepFeedback(sessionId, payload) {
  */
 export async function predictApnea({ audioFile, spo2, modo = 'screening', perfil = 'general' }) {
   const formData = new FormData();
-  formData.append('audio', audioFile, 'audio.wav');
+  formData.append('audio', audioFile, audioFile.name || 'audio.m4a');
 
   const { data } = await api.post('/api/v1/sleep/v3/predict', formData, {
     params: {

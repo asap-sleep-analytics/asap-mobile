@@ -65,13 +65,13 @@ export default function OximeterConnectScreen() {
         setError('No encontramos oxímetros cerca. Activa Bluetooth y acerca el dispositivo.');
       }
     } catch (err) {
-      setError(err?.message || 'No fue posible escanear dispositivos Bluetooth.');
+      setError((err as Error)?.message || 'No fue posible escanear dispositivos Bluetooth.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConnect = async (device) => {
+  const handleConnect = async (device: OximeterDevice) => {
     setConnectingId(device.id);
     setError('');
 
@@ -81,7 +81,7 @@ export default function OximeterConnectScreen() {
       setConnectedDevice(connected);
       Alert.alert('Conectado', `Oxímetro conectado: ${connected.name}`);
     } catch (err) {
-      setError(err?.message || 'No se pudo conectar el oxímetro.');
+      setError((err as Error)?.message || 'No se pudo conectar el oxímetro.');
     } finally {
       setConnectingId('');
     }
@@ -93,7 +93,7 @@ export default function OximeterConnectScreen() {
       await clearPreferredOximeterDevice();
       setConnectedDevice(null);
     } catch (err) {
-      setError(err?.message || 'No fue posible desconectar el oxímetro.');
+      setError((err as Error)?.message || 'No fue posible desconectar el oxímetro.');
     }
   };
 

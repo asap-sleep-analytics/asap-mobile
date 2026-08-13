@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
+import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import GlassCard from '../../../components/GlassCard';
@@ -66,6 +66,11 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
   const isCalibratingNoiseRef = useRef<boolean>(false);
   const lastNoiseCalibrationAtRef = useRef<number | null>(null);
 
+  const recorder = useAudioRecorder({
+    ...RecordingPresets.LOW_QUALITY,
+    isMeteringEnabled: true,
+  });
+
   const refreshSessions = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -106,10 +111,9 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
     isCalibratingNoiseRef.current = true;
     setIsCalibratingNoise(true);
     setCalibrationSecondsLeft(Math.ceil(NOISE_CALIBRATION_TOTAL_MS / 1000));
-    let recording: any = null;
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (permission.status !== 'granted') {
         if (showErrorMessage) {
           setError('No se pudo calibrar automáticamente: permiso de micrófono denegado.');
@@ -117,26 +121,21 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      recording = new Audio.Recording();
-      await recording.prepareToRecordAsync({
-        ...Audio.RecordingOptionsPresets.LOW_QUALITY,
-        isMeteringEnabled: true,
-      });
-
-      await recording.startAsync();
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
       const samples: number[] = [];
       const startedAt = Date.now();
 
       while (Date.now() - startedAt < NOISE_CALIBRATION_TOTAL_MS) {
         await new Promise<void>((resolve) => { setTimeout(resolve, NOISE_CALIBRATION_SAMPLE_MS); });
-        const status = await recording.getStatusAsync();
-        if (status?.isRecording && Number.isFinite(status.metering)) {
+        const status = recorder.getStatus();
+        if (status?.isRecording && typeof status.metering === 'number') {
           samples.push(status.metering);
         }
 
@@ -145,11 +144,10 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         setCalibrationSecondsLeft(Math.ceil(remainingMs / 1000));
       }
 
-      await recording.stopAndUnloadAsync();
-      recording = null;
+      await recorder.stop();
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        allowsRecording: false,
       });
 
       if (samples.length > 0) {
@@ -168,14 +166,14 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
       }
     } finally {
       try {
-        if (recording) {
-          await recording.stopAndUnloadAsync();
+        if (recorder.isRecording) {
+          await recorder.stop();
         }
       } catch {
         // ignore cleanup failures
       }
       try {
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        await setAudioModeAsync({ allowsRecording: false });
       } catch {
         // ignore cleanup failures
       }

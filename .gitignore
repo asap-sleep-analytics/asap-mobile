@@ -4,6 +4,10 @@ node_modules/
 web-build/
 dist/
 
+# Continuous Native Generation (prebuild) - native projects are generated on demand
+android/
+ios/
+
 .env
 .env.*
 !.env.example

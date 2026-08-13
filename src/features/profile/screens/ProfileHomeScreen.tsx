@@ -16,7 +16,7 @@ import { getProfileSurvey, saveProfileSurvey } from '../../../services/localHeal
 import { fonts, palette } from '../../../theme/tokens';
 import type { ProfileSurveyData } from '../../../types';
 
-function normalizeRisk(value) {
+function normalizeRisk(value: string | undefined) {
   if (typeof value !== 'string') {
     return 'Sin clasificar';
   }
@@ -28,7 +28,7 @@ function normalizeRisk(value) {
   return value;
 }
 
-function boolLabel(value) {
+function boolLabel(value: boolean | null | undefined) {
   if (value === true) {
     return 'Sí';
   }
@@ -154,11 +154,11 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const updateField = (name, value) => {
+  const updateField = (name: string, value: string) => {
     setSurvey((prev) => ({ ...prev, [name]: value }));
   };
 
-  const toggleComorbidity = (value) => {
+  const toggleComorbidity = (value: string) => {
     setSurvey((prev) => {
       const current = Array.isArray(prev.comorbilidades) ? prev.comorbilidades : [];
 

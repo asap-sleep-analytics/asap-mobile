@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
@@ -11,7 +11,7 @@ import { getApiErrorMessage, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
 import type { SleepSessionRecord } from '../../../types';
 
-function formatDateTime(value) {
+function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return '--';
   }
@@ -29,7 +29,7 @@ function formatDateTime(value) {
   });
 }
 
-function formatDurationMinutes(startTime, endTime) {
+function formatDurationMinutes(startTime: string | null | undefined, endTime: string | null | undefined) {
   if (!startTime || !endTime) {
     return '--';
   }
@@ -51,7 +51,7 @@ function formatDurationMinutes(startTime, endTime) {
   return `${hours} h ${mins} min`;
 }
 
-function toIsoDate(value) {
+function toIsoDate(value: string | null | undefined) {
   if (!value) {
     return '--';
   }
@@ -169,7 +169,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
 
 interface SessionMetrics {
   noches: number;
-  score: string;
+  score: string | number;
   apnea: number;
   ronquido: number;
 }

@@ -7,12 +7,22 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.asap.mobile"
+      "package": "com.asap.mobile",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-dev-client"
+      "expo-dev-client",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-audio",
+      "expo-asset"
     ],
     "web": {
       "bundler": "metro"
@@ -20,6 +30,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.asap.mobile"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5e076068-87b0-4c35-abbb-b5ca1fee9dd1"
+      }
+    },
+    "owner": "manuel10"
   }
 }

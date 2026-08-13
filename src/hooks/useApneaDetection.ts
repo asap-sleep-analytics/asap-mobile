@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
+import { AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { predictApnea, getApiErrorMessage } from '../services/api';
 
 interface ApneaResult {
@@ -39,28 +39,28 @@ interface UseApneaDetectionReturn {
   segmentDurationMs: number;
 }
 
-const RECORDING_OPTIONS: Audio.RecordingOptions = {
+const RECORDING_OPTIONS = {
   isMeteringEnabled: false,
+  extension: '.m4a',
+  sampleRate: 16000,
+  numberOfChannels: 1,
+  bitRate: 64000,
   android: {
-    extension: '.wav',
-    outputFormat: Audio.AndroidOutputFormat.PCM as number,
-    audioEncoder: Audio.AndroidAudioEncoder.PCM as number,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 256000,
+    outputFormat: 'mpeg4',
+    audioEncoder: 'aac',
   },
   ios: {
-    extension: '.wav',
-    outputFormat: Audio.IOSOutputFormat.LPCM as number,
-    audioQuality: Audio.IOSAudioQuality.MAX as number,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 256000,
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MAX,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
   },
-};
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 64000,
+  },
+} as const;
 
 const SEGMENT_DURATION_MS = 30000;
 
@@ -75,7 +75,9 @@ export function useApneaDetection({
   const [error, setError] = useState('');
   const [elapsedMs, setElapsedMs] = useState(0);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(RECORDING_OPTIONS);
+
+  const recordingRef = useRef<typeof recorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(false);
   const recordingStartRef = useRef<number | null>(null);
@@ -92,23 +94,21 @@ export function useApneaDetection({
       setError('');
       setIsRecording(true);
 
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (permission.status !== 'granted') {
         throw new Error('Permiso de micrófono denegado');
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        staysActiveInBackground: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
       });
 
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(RECORDING_OPTIONS);
-      await recording.startAsync();
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      recordingRef.current = recording;
+      recordingRef.current = recorder;
       recordingStartRef.current = Date.now();
 
       clearTimer();
@@ -134,8 +134,8 @@ export function useApneaDetection({
 
         clearTimer();
 
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
+        await recordingRef.current.stop();
+        const uri = recordingRef.current.uri;
         recordingRef.current = null;
 
         if (!uri) {
@@ -146,8 +146,8 @@ export function useApneaDetection({
 
         const audioFile = {
           uri,
-          type: 'audio/wav',
-          name: 'audio.wav',
+          type: 'audio/mp4',
+          name: 'audio.m4a',
         };
 
         const spo2Str = spo2Values
@@ -185,7 +185,7 @@ export function useApneaDetection({
         clearTimer();
 
         try {
-          await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+          await setAudioModeAsync({ allowsRecording: false });
         } catch {
           // ignore
         }
@@ -199,7 +199,7 @@ export function useApneaDetection({
       clearTimer();
 
       if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
+        await recordingRef.current.stop();
         recordingRef.current = null;
       }
 
@@ -211,7 +211,7 @@ export function useApneaDetection({
       recordingStartRef.current = null;
 
       try {
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        await setAudioModeAsync({ allowsRecording: false });
       } catch {
         // ignore
       }
@@ -249,7 +249,7 @@ export function useApneaDetection({
       mountedRef.current = false;
       clearTimer();
       if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current.stop().catch(() => {});
       }
     };
   }, [clearTimer]);

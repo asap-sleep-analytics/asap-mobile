@@ -39,7 +39,7 @@ function estimateHours(start: string, end: string): number | null {
   return Math.round(((endMin - startMin) / 60) * 10) / 10;
 }
 
-function format12h(timeValue: string): string {
+function format12h(timeValue: string | undefined): string {
   const [hourText, minuteText] = String(timeValue).split(':');
   const hourNumber = Number(hourText);
   const minuteNumber = Number(minuteText);

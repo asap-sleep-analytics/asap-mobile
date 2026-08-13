@@ -2,7 +2,14 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { palette, fonts } from '../theme/tokens';
 
-const LEVEL_STYLES = {
+interface LevelStyle {
+  backgroundColor: string;
+  borderColor: string;
+  badgeColor: string;
+  textColor: string;
+}
+
+const LEVEL_STYLES: Record<string, LevelStyle> = {
   NORMAL: {
     backgroundColor: '#ECFDF5',
     borderColor: '#10B981',
@@ -23,15 +30,26 @@ const LEVEL_STYLES = {
   },
 };
 
-/**
- * Componente para mostrar resultado de detección de apnea
- * @param {Object} result - Resultado de la predicción
- * @param {string} result.nivel - NORMAL, ALERTA o CRITICO
- * @param {string} result.interpretacion - Texto de interpretación
- * @param {number} result.probabilidad - Probabilidad (0-1)
- * @param {Object} result.detalle - Detalles de la predicción
- */
-export default function ApneaResultCard({ result }) {
+interface ApneaResultDetail {
+  prob_audio: number;
+  prob_spo2: number;
+  spo2_drop_pts: number;
+  peso_audio?: number;
+  peso_spo2?: number;
+}
+
+interface ApneaResultCardProps {
+  result: {
+    nivel: string;
+    interpretacion: string;
+    probabilidad: number;
+    detalle?: ApneaResultDetail;
+    modo?: string;
+    version?: string;
+  } | null;
+}
+
+export default function ApneaResultCard({ result }: ApneaResultCardProps) {
   if (!result) {
     return null;
   }
@@ -66,7 +84,7 @@ export default function ApneaResultCard({ result }) {
           {result.detalle.peso_audio !== undefined && (
             <DetailRow
               label="Pesos"
-              value={`Audio: ${(result.detalle.peso_audio * 100).toFixed(0)}% | SpO2: ${(result.detalle.peso_spo2 * 100).toFixed(0)}%`}
+              value={`Audio: ${(result.detalle.peso_audio * 100).toFixed(0)}% | SpO2: ${(result.detalle.peso_spo2! * 100).toFixed(0)}%`}
               color={styles.textColor}
               small
             />
@@ -87,7 +105,7 @@ export default function ApneaResultCard({ result }) {
 /**
  * Fila de detalle
  */
-function DetailRow({ label, value, color, small }) {
+function DetailRow({ label, value, color, small }: { label: string; value: string; color: string; small?: boolean }) {
   return (
     <View style={componentStyles.detailRow}>
       <Text style={[componentStyles.detailLabel, { color }, small && componentStyles.small]}>{label}</Text>

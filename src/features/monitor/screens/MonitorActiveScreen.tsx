@@ -1,8 +1,8 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Audio } from 'expo-av';
+import { AudioQuality, IOSOutputFormat, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import * as Brightness from 'expo-brightness';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { AppContext } from '../../../context/AppContext';
@@ -47,23 +47,19 @@ interface PredictionResult {
 const FRAGMENT_DURATION_MS = 30_000;
 const WAVE_BARS = 28;
 
-const RECORDING_OPTIONS: Audio.RecordingOptions = {
+const RECORDING_OPTIONS = {
   isMeteringEnabled: true,
+  extension: '.m4a',
+  sampleRate: 16000,
+  numberOfChannels: 1,
+  bitRate: 128000,
   android: {
-    extension: '.m4a',
-    outputFormat: Audio.AndroidOutputFormat.MPEG_4 as number,
-    audioEncoder: Audio.AndroidAudioEncoder.AAC as number,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 128000,
+    outputFormat: 'mpeg4',
+    audioEncoder: 'aac',
   },
   ios: {
-    extension: '.m4a',
-    outputFormat: Audio.IOSOutputFormat.MPEG4AAC as number,
-    audioQuality: Audio.IOSAudioQuality.MAX as number,
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 128000,
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MAX,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
@@ -72,7 +68,7 @@ const RECORDING_OPTIONS: Audio.RecordingOptions = {
     mimeType: 'audio/webm',
     bitsPerSecond: 128000,
   },
-};
+} as const;
 
 function meterToLevel(metering: number): number {
   const clamped = Math.max(-60, Math.min(0, metering));
@@ -127,8 +123,11 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [spo2Values, setSpo2Values] = useState<number[]>([]);
 
+  const recorder = useAudioRecorder(RECORDING_OPTIONS);
+
   const monitoringRef = useRef(false);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingRef = useRef<typeof recorder | null>(null);
+  const meteringTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fragmentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fragmentStartedAtRef = useRef(0);
@@ -179,6 +178,13 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     if (fragmentTimerRef.current) {
       clearTimeout(fragmentTimerRef.current);
       fragmentTimerRef.current = null;
+    }
+  };
+
+  const clearMeteringTimer = () => {
+    if (meteringTimerRef.current) {
+      clearInterval(meteringTimerRef.current);
+      meteringTimerRef.current = null;
     }
   };
 
@@ -301,18 +307,19 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
     isFinalizingRef.current = true;
     clearFragmentTimer();
+    clearMeteringTimer();
 
-    let status: Audio.RecordingStatus | null = null;
+    let status: ReturnType<typeof recorder.getStatus> | null = null;
     try {
-      status = await recording.getStatusAsync();
+      status = recorder.getStatus();
       if (status?.isRecording) {
-        await recording.stopAndUnloadAsync();
+        await recorder.stop();
       }
     } catch {
       // La grabación pudo detenerse por sistema
     }
 
-    const uri = recording.getURI();
+    const uri = recorder.uri;
     recordingRef.current = null;
 
     const fragmentIndex = fragmentIndexRef.current;
@@ -377,20 +384,19 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     }
 
     try {
-      const recording = new Audio.Recording();
-      recording.setProgressUpdateInterval(250);
-      recording.setOnRecordingStatusUpdate((status) => {
-        if (!status?.canRecord || typeof status.metering !== 'number') {
-          return;
-        }
-        updateWaveFromMetering(status.metering);
-      });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      await recording.prepareToRecordAsync(RECORDING_OPTIONS);
-      await recording.startAsync();
-
-      recordingRef.current = recording;
+      recordingRef.current = recorder;
       fragmentStartedAtRef.current = Date.now();
+
+      clearMeteringTimer();
+      meteringTimerRef.current = setInterval(() => {
+        const status = recorder.getStatus();
+        if (status?.isRecording && typeof status.metering === 'number') {
+          updateWaveFromMetering(status.metering);
+        }
+      }, 250);
 
       clearFragmentTimer();
       fragmentTimerRef.current = setTimeout(async () => {
@@ -410,12 +416,12 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   };
 
   const requestAudioPermission = async (): Promise<boolean> => {
-    const current = await Audio.getPermissionsAsync();
+    const current = await getRecordingPermissionsAsync();
     if (current.granted) {
       return true;
     }
 
-    const requested = await Audio.requestPermissionsAsync();
+    const requested = await requestRecordingPermissionsAsync();
     return requested.granted;
   };
 
@@ -439,11 +445,10 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        staysActiveInBackground: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
       });
 
       await applyLowBrightness();
@@ -499,8 +504,8 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     }
 
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        allowsRecording: false,
       });
     } catch {
       // Sin bloqueo
@@ -518,14 +523,14 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       mountedRef.current = false;
       monitoringRef.current = false;
       clearFragmentTimer();
+      clearMeteringTimer();
       clearElapsedTimer();
 
       const cleanup = async () => {
         try {
-          if (recordingRef.current) {
-            await recordingRef.current.stopAndUnloadAsync();
-            const uri = recordingRef.current.getURI();
-            recordingRef.current = null;
+          if (recorder.isRecording) {
+            await recorder.stop();
+            const uri = recorder.uri;
             if (uri) {
               await FileSystem.deleteAsync(uri, { idempotent: true });
             }
@@ -537,7 +542,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         await restoreBrightness();
 
         try {
-          await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+          await setAudioModeAsync({ allowsRecording: false });
         } catch {
           // Sin bloqueo
         }
