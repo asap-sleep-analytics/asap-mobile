@@ -1,39 +1,45 @@
-import 'react-native-gesture-handler';
-import React, { useContext, useEffect, useRef } from 'react';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_700Bold, useFonts as useManropeFonts } from '@expo-google-fonts/manrope';
+import "react-native-gesture-handler";
+import React, { useContext, useEffect, useRef } from "react";
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_700Bold,
+  useFonts as useManropeFonts,
+} from "@expo-google-fonts/manrope";
 import {
   SpaceGrotesk_500Medium,
   SpaceGrotesk_700Bold,
   useFonts as useSpaceGroteskFonts,
-} from '@expo-google-fonts/space-grotesk';
-import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { AppState } from 'react-native';
+} from "@expo-google-fonts/space-grotesk";
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createStackNavigator } from "@react-navigation/stack";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { AppState } from "react-native";
 
-import { AppContext, AppProvider } from './src/context/AppContext';
-import LiveMonitorChip from './src/components/LiveMonitorChip';
-import AuthScreen from './src/features/auth/screens/AuthScreen';
-import TermsScreen from './src/features/auth/screens/TermsScreen';
-import DashboardHomeScreen from './src/features/dashboard/screens/DashboardHomeScreen';
-import HistorySessionsScreen from './src/features/history/screens/HistorySessionsScreen';
-import MonitorActiveScreen from './src/features/monitor/screens/MonitorActiveScreen';
-import MonitorControlScreen from './src/features/monitor/screens/MonitorControlScreen';
-import MonitorSummaryScreen from './src/features/monitor/screens/MonitorSummaryScreen';
-import OximeterConnectScreen from './src/features/monitor/screens/OximeterConnectScreen';
-import SleepDiaryScreen from './src/features/monitor/screens/SleepDiaryScreen';
-import EmergencyAlertsScreen from './src/features/profile/screens/EmergencyAlertsScreen';
-import ProfileHomeScreen from './src/features/profile/screens/ProfileHomeScreen';
-import HowItWorksScreen from './src/features/info/screens/HowItWorksScreen';
-import PrivacyPolicyScreen from './src/features/info/screens/PrivacyPolicyScreen';
-import ContactSupportScreen from './src/features/info/screens/ContactSupportScreen';
-import TipsDetailScreen from './src/features/tips/screens/TipsDetailScreen';
-import TipsHomeScreen from './src/features/tips/screens/TipsHomeScreen';
-import { recordAppInactivityWindow } from './src/services/localHealth';
-import { fonts, palette } from './src/theme/tokens';
+import { AppContext, AppProvider } from "./src/context/AppContext";
+import LiveMonitorChip from "./src/components/LiveMonitorChip";
+import AuthScreen from "./src/features/auth/screens/AuthScreen";
+import ForgotPasswordScreen from "./src/features/auth/screens/ForgotPasswordScreen";
+import TermsScreen from "./src/features/auth/screens/TermsScreen";
+import DashboardHomeScreen from "./src/features/dashboard/screens/DashboardHomeScreen";
+import HistorySessionsScreen from "./src/features/history/screens/HistorySessionsScreen";
+import MonitorActiveScreen from "./src/features/monitor/screens/MonitorActiveScreen";
+import MonitorControlScreen from "./src/features/monitor/screens/MonitorControlScreen";
+import MonitorSummaryScreen from "./src/features/monitor/screens/MonitorSummaryScreen";
+import OximeterConnectScreen from "./src/features/monitor/screens/OximeterConnectScreen";
+import SleepDiaryScreen from "./src/features/monitor/screens/SleepDiaryScreen";
+import EmergencyAlertsScreen from "./src/features/profile/screens/EmergencyAlertsScreen";
+import ProfileHomeScreen from "./src/features/profile/screens/ProfileHomeScreen";
+import HowItWorksScreen from "./src/features/info/screens/HowItWorksScreen";
+import PrivacyPolicyScreen from "./src/features/info/screens/PrivacyPolicyScreen";
+import ContactSupportScreen from "./src/features/info/screens/ContactSupportScreen";
+import TipsDetailScreen from "./src/features/tips/screens/TipsDetailScreen";
+import TipsHomeScreen from "./src/features/tips/screens/TipsHomeScreen";
+import { recordAppInactivityWindow } from "./src/services/localHealth";
+import { fonts, palette } from "./src/theme/tokens";
 
 const AuthStack = createStackNavigator();
 const DashboardStack = createStackNavigator();
@@ -68,11 +74,35 @@ function AuthStackNavigator() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="AuthScreen" component={AuthScreen} />
       <AuthStack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+        options={{
+          headerShown: true,
+          title: "Recuperar contraseña",
+          headerStyle: {
+            backgroundColor: palette.background,
+            borderBottomWidth: 1,
+            borderBottomColor: palette.borderSoft,
+            shadowOpacity: 0,
+            elevation: 0,
+          },
+          headerTintColor: palette.textPrimary,
+          headerTitleStyle: {
+            fontFamily: fonts.headingMedium,
+            letterSpacing: 0.6,
+            color: palette.textPrimary,
+          },
+          cardStyle: {
+            backgroundColor: palette.background,
+          },
+        }}
+      />
+      <AuthStack.Screen
         name="Terms"
         component={TermsScreen}
         options={{
           headerShown: true,
-          title: 'Términos y condiciones',
+          title: "Términos y condiciones",
           headerStyle: {
             backgroundColor: palette.background,
             borderBottomWidth: 1,
@@ -101,12 +131,12 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen
         name="DashboardHome"
         component={DashboardHomeScreen}
-        options={{ title: 'Resumen de riesgo' }}
+        options={{ title: "Resumen de riesgo" }}
       />
       <DashboardStack.Screen
         name="HowItWorks"
         component={HowItWorksScreen}
-        options={{ title: 'Cómo funciona' }}
+        options={{ title: "Cómo funciona" }}
       />
     </DashboardStack.Navigator>
   );
@@ -118,7 +148,7 @@ function MonitorStackNavigator() {
       <MonitorStack.Screen
         name="MonitorCenter"
         component={MonitorControlScreen}
-        options={{ title: 'Monitoreo nocturno' }}
+        options={{ title: "Monitoreo nocturno" }}
       />
       <MonitorStack.Screen
         name="MonitorActive"
@@ -128,17 +158,17 @@ function MonitorStackNavigator() {
       <MonitorStack.Screen
         name="MonitorSummary"
         component={MonitorSummaryScreen}
-        options={{ title: 'Resultado de la noche' }}
+        options={{ title: "Resultado de la noche" }}
       />
       <MonitorStack.Screen
         name="SleepDiary"
         component={SleepDiaryScreen}
-        options={{ title: 'Registro de sueño' }}
+        options={{ title: "Registro de sueño" }}
       />
       <MonitorStack.Screen
         name="OximeterConnect"
         component={OximeterConnectScreen}
-        options={{ title: 'Oxímetro Bluetooth' }}
+        options={{ title: "Oxímetro Bluetooth" }}
       />
     </MonitorStack.Navigator>
   );
@@ -150,7 +180,7 @@ function HistoryStackNavigator() {
       <HistoryStack.Screen
         name="HistoryHome"
         component={HistorySessionsScreen}
-        options={{ title: 'Historial de apneas' }}
+        options={{ title: "Historial de apneas" }}
       />
     </HistoryStack.Navigator>
   );
@@ -162,22 +192,22 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen
         name="ProfileHome"
         component={ProfileHomeScreen}
-        options={{ title: 'Perfil' }}
+        options={{ title: "Perfil" }}
       />
       <ProfileStack.Screen
         name="EmergencyAlerts"
         component={EmergencyAlertsScreen}
-        options={{ title: 'Alertas de emergencia' }}
+        options={{ title: "Alertas de emergencia" }}
       />
       <ProfileStack.Screen
         name="PrivacyPolicy"
         component={PrivacyPolicyScreen}
-        options={{ title: 'Política de privacidad' }}
+        options={{ title: "Política de privacidad" }}
       />
       <ProfileStack.Screen
         name="ContactSupport"
         component={ContactSupportScreen}
-        options={{ title: 'Contacto y soporte' }}
+        options={{ title: "Contacto y soporte" }}
       />
     </ProfileStack.Navigator>
   );
@@ -189,12 +219,12 @@ function TipsStackNavigator() {
       <TipsStack.Screen
         name="TipsHome"
         component={TipsHomeScreen}
-        options={{ title: 'Prevención' }}
+        options={{ title: "Prevención" }}
       />
       <TipsStack.Screen
         name="TipsDetail"
         component={TipsDetailScreen}
-        options={{ title: 'Detalle del módulo' }}
+        options={{ title: "Detalle del módulo" }}
       />
     </TipsStack.Navigator>
   );
@@ -205,19 +235,19 @@ function AppTabsNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => {
         const focusedIcons = {
-          DashboardTab: 'pulse',
-          MonitorTab: 'moon',
-          HistoryTab: 'time',
-          TipsTab: 'book',
-          ProfileTab: 'person',
+          DashboardTab: "pulse",
+          MonitorTab: "moon",
+          HistoryTab: "time",
+          TipsTab: "book",
+          ProfileTab: "person",
         };
 
         const outlineIcons = {
-          DashboardTab: 'pulse-outline',
-          MonitorTab: 'moon-outline',
-          HistoryTab: 'time-outline',
-          TipsTab: 'book-outline',
-          ProfileTab: 'person-outline',
+          DashboardTab: "pulse-outline",
+          MonitorTab: "moon-outline",
+          HistoryTab: "time-outline",
+          TipsTab: "book-outline",
+          ProfileTab: "person-outline",
         };
 
         return {
@@ -239,10 +269,16 @@ function AppTabsNavigator() {
           },
           tabBarIcon: ({ focused, color, size }) => {
             const dynamicIconName = focused
-              ? focusedIcons[route.name] || 'ellipse'
-              : outlineIcons[route.name] || 'ellipse-outline';
+              ? focusedIcons[route.name] || "ellipse"
+              : outlineIcons[route.name] || "ellipse-outline";
 
-            return <Ionicons name={dynamicIconName} color={color} size={Math.max(size, 21)} />;
+            return (
+              <Ionicons
+                name={dynamicIconName}
+                color={color}
+                size={Math.max(size, 21)}
+              />
+            );
           },
         };
       }}
@@ -250,27 +286,27 @@ function AppTabsNavigator() {
       <Tab.Screen
         name="DashboardTab"
         component={DashboardStackNavigator}
-        options={{ title: 'Riesgo' }}
+        options={{ title: "Riesgo" }}
       />
       <Tab.Screen
         name="MonitorTab"
         component={MonitorStackNavigator}
-        options={{ title: 'Monitorear' }}
+        options={{ title: "Monitorear" }}
       />
       <Tab.Screen
         name="HistoryTab"
         component={HistoryStackNavigator}
-        options={{ title: 'Historial' }}
+        options={{ title: "Historial" }}
       />
       <Tab.Screen
         name="TipsTab"
         component={TipsStackNavigator}
-        options={{ title: 'Prevenir' }}
+        options={{ title: "Prevenir" }}
       />
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
-        options={{ title: 'Perfil' }}
+        options={{ title: "Perfil" }}
       />
     </Tab.Navigator>
   );
@@ -288,7 +324,11 @@ function AppNavigationGate() {
     );
   }
 
-  return <NavigationContainer>{isAuthenticated ? <AppTabsNavigator /> : <AuthStackNavigator />}</NavigationContainer>;
+  return (
+    <NavigationContainer>
+      {isAuthenticated ? <AppTabsNavigator /> : <AuthStackNavigator />}
+    </NavigationContainer>
+  );
 }
 
 export default function App() {
@@ -296,16 +336,25 @@ export default function App() {
   const backgroundAtRef = useRef(null);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
       const prevState = appStateRef.current;
 
-      if (prevState === 'active' && (nextState === 'background' || nextState === 'inactive')) {
+      if (
+        prevState === "active" &&
+        (nextState === "background" || nextState === "inactive")
+      ) {
         backgroundAtRef.current = Date.now();
       }
 
-      if ((prevState === 'background' || prevState === 'inactive') && nextState === 'active' && backgroundAtRef.current) {
+      if (
+        (prevState === "background" || prevState === "inactive") &&
+        nextState === "active" &&
+        backgroundAtRef.current
+      ) {
         const foregroundAt = Date.now();
-        const durationMinutes = Math.round((foregroundAt - backgroundAtRef.current) / 60000);
+        const durationMinutes = Math.round(
+          (foregroundAt - backgroundAtRef.current) / 60000,
+        );
 
         if (durationMinutes >= 15) {
           recordAppInactivityWindow({
@@ -355,8 +404,8 @@ export default function App() {
 const styles = StyleSheet.create({
   loaderWrap: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: palette.background,
   },
   loaderText: {
