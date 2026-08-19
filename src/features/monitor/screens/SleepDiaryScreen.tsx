@@ -204,7 +204,7 @@ function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; o
 function SleepHistoryBar({ entry, isSelected, onPress }: { entry: DiaryEntryData; isSelected: boolean; onPress: () => void }) {
   const hours = entry.total_hours || 0;
   const barHeight = Math.max(Math.min(hours * 20, 140), 30);
-  const barColor = hours >= 7 ? palette.mint : hours >= 5 ? '#FF9F43' : '#FF6B6B';
+  const barColor = hours >= 7 ? palette.primary : hours >= 5 ? palette.warning : palette.danger;
 
   return (
     <Pressable
@@ -401,7 +401,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
 
                 <Text style={styles.recommendationText}>
                   🌙 Basándonos en tu patrón de sueño, te recomendamos acostarte a las{' '}
-                  <Text style={{ color: palette.mint, fontFamily: fonts.bodyBold }}>
+                  <Text style={{ color: palette.primary, fontFamily: fonts.bodyBold }}>
                     {format12h(sleepRecommendation.recommendedTime)}
                   </Text>{' '}
                   para un descanso óptimo.
@@ -564,9 +564,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.1)',
-    color: palette.mint,
+    borderColor: 'rgba(37,99,235,0.55)',
+    backgroundColor: palette.primarySoft,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    color: palette.warning,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.8,
@@ -591,8 +591,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   historyCard: {
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -611,25 +611,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 8,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: palette.borderSoft,
   },
   verticalBarSelected: {
-    borderColor: palette.mint,
-    backgroundColor: 'rgba(110,247,207,0.12)',
+    borderColor: palette.primary,
+    backgroundColor: palette.primarySoft,
   },
   verticalBarChart: {
     width: 40,
     height: 140,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: palette.panelStrong,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     marginBottom: 6,
   },
   verticalBarChartSelected: {
-    backgroundColor: 'rgba(110,247,207,0.2)',
+    backgroundColor: palette.primarySoft,
   },
   verticalBarFill: {
     width: '100%',
@@ -647,8 +647,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   recommendationCard: {
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 10,
     borderWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: palette.surfaceAlt,
     paddingHorizontal: 10,
     paddingVertical: 10,
     alignItems: 'center',
@@ -676,20 +676,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   recommendationValue: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.headingMedium,
     fontSize: 14,
   },
   recommendationText: {
-    color: '#FFFFFF',
+    color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 4,
   },
   emptyCard: {
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     borderWidth: 1,
     alignItems: 'center',
     paddingVertical: 32,
@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   errorText: {
-    color: '#FF8A80',
+    color: palette.danger,
     fontFamily: fonts.bodyBold,
     fontSize: 14,
     textAlign: 'center',
@@ -717,13 +717,13 @@ const styles = StyleSheet.create({
   },
   addButton: {
     borderRadius: 14,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
     alignItems: 'center',
     paddingVertical: 13,
     marginTop: 12,
   },
   addButtonText: {
-    color: '#03110C',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
     fontSize: 15,
   },
@@ -734,11 +734,11 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(15,23,42,0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1a3333',
+    backgroundColor: palette.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: palette.borderSoft,
   },
   tab: {
     flex: 1,
@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabActive: {
-    borderBottomColor: palette.mint,
+    borderBottomColor: palette.primary,
   },
   tabText: {
     color: palette.textSecondary,
@@ -790,14 +790,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   tabTextActive: {
-    color: palette.mint,
+    color: palette.primary,
   },
   timeSelectionContainer: {
     marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: palette.surfaceAlt,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: palette.borderSoft,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   timeLargeDisplay: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.heading,
     fontSize: 40,
     fontWeight: '700',
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
     borderWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: palette.surfaceAlt,
   },
   timePickerItem: {
     height: 40,
@@ -845,10 +845,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   timePickerItemSelected: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: palette.primarySoft,
   },
   timePickerItemTextSelected: {
-    color: palette.mint,
+    color: palette.primary,
     fontSize: 18,
     fontFamily: fonts.bodyBold,
   },
@@ -867,8 +867,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   summaryBox: {
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.08)',
+    borderColor: 'rgba(37,99,235,0.45)',
+    backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     marginTop: 4,
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.headingMedium,
     fontSize: 20,
   },
@@ -898,10 +898,10 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: palette.borderSoft,
     paddingVertical: 11,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: palette.surfaceAlt,
   },
   cancelButtonText: {
     color: palette.textPrimary,
@@ -911,18 +911,18 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
     paddingVertical: 11,
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#03110C',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
     fontSize: 13,
   },
   todayCard: {
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   todayRecordDivider: {
     width: 1,
     height: 50,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: palette.borderSoft,
   },
   todayRecordLabel: {
     color: palette.textSecondary,
@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   todayRecordValue: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.headingMedium,
     fontSize: 28,
   },

@@ -8,7 +8,7 @@ type SectionBadgeProps = {
   color?: string;
 };
 
-export default function SectionBadge({ label, color = palette.mint }: SectionBadgeProps) {
+export default function SectionBadge({ label, color = palette.primary }: SectionBadgeProps) {
   return (
     <View style={[styles.badge, { borderColor: `${color}5C`, backgroundColor: `${color}17` }]}>
       <Text style={[styles.text, { color }]}>{label}</Text>

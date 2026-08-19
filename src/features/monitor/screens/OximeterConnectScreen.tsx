@@ -118,7 +118,7 @@ export default function OximeterConnectScreen() {
             </Pressable>
           </View>
 
-          {loading ? <ActivityIndicator color={palette.mint} style={styles.loader} /> : null}
+          {loading ? <ActivityIndicator color={palette.primary} style={styles.loader} /> : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </GlassCard>
 
@@ -162,9 +162,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(149,178,255,0.45)',
-    backgroundColor: 'rgba(149,178,255,0.14)',
-    color: '#D4DCFF',
+    borderColor: 'rgba(37,99,235,0.35)',
+    backgroundColor: palette.primarySoft,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   stateCard: {
-    borderColor: 'rgba(149,178,255,0.36)',
-    backgroundColor: 'rgba(13,18,31,0.82)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   stateLabel: {
     color: palette.textMuted,
@@ -215,20 +215,20 @@ const styles = StyleSheet.create({
   primaryButton: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: '#9FB0FF',
+    backgroundColor: palette.primary,
     alignItems: 'center',
     paddingVertical: 11,
   },
   primaryButtonText: {
-    color: '#111A35',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
   },
   ghostButton: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     alignItems: 'center',
     paddingVertical: 11,
   },
@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   deviceCard: {
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   deviceHead: {
     flexDirection: 'row',
@@ -267,13 +267,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(126,238,193,0.6)',
-    backgroundColor: 'rgba(126,238,193,0.16)',
+    borderColor: 'rgba(37,99,235,0.5)',
+    backgroundColor: palette.primarySoft,
     alignItems: 'center',
     paddingVertical: 9,
   },
   connectButtonText: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
   },
   pressed: {

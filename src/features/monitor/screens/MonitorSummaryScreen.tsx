@@ -10,6 +10,7 @@ import { AppContext } from '../../../context/AppContext';
 import { fonts, palette } from '../../../theme/tokens';
 import type { SleepSessionRecord } from '../../../types';
 import { formatDurationMinutes } from '../../../utils/dates';
+import { riskFromApneaEvents } from '../../../utils/apneaRisk';
 
 interface Props {
   route: { params?: { session?: SleepSessionRecord | null } };
@@ -19,36 +20,14 @@ interface Props {
   };
 }
 
-function getConclusion(score: number, apnea: number): { label: string; color: string; message: string } {
-  if (score >= 82 && apnea <= 2) {
-    return {
-      label: 'Buena noche',
-      color: palette.mint,
-      message: 'Tu descanso fue estable y con pocos eventos respiratorios. Sigue con tu rutina.',
-    };
-  }
-  if (score >= 65) {
-    return {
-      label: 'Noche intermedia',
-      color: palette.warning,
-      message: 'Se registró algo de interrupción. Intenta dormir de lado y mantener un horario fijo.',
-    };
-  }
-  return {
-    label: 'Noche irregular',
-    color: palette.danger,
-    message: 'Se detectaron varios eventos. Te recomendamos consultar con un especialista del sueño.',
-  };
-}
-
 export default function MonitorSummaryScreen({ route, navigation }: Props) {
   const { setActiveSleepSessionId } = useContext(AppContext);
   const session = route?.params?.session || null;
 
-  const score = session?.sleep_score ?? 0;
   const apnea = session?.apnea_events ?? 0;
   const snore = session?.snore_count ?? 0;
-  const conclusion = getConclusion(score, apnea);
+  const score = session?.sleep_score ?? 0;
+  const riskVisual = riskFromApneaEvents(apnea);
 
   const handleGoToHistory = () => {
     setActiveSleepSessionId('');
@@ -64,28 +43,30 @@ export default function MonitorSummaryScreen({ route, navigation }: Props) {
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
         <SectionBadge label="Monitoreo finalizado" />
-        <Text style={styles.title}>Resumen de tu noche</Text>
+        <Text style={styles.title}>Resultado de tu noche</Text>
         <Text style={styles.subtitle}>
-          Tu grabación se guardó en el historial. Esto es lo que registramos esta sesión.
+          Esto es lo que registramos en cuanto a eventos respiratorios durante esta sesión.
         </Text>
 
-        <GlassCard style={styles.scoreCard}>
-          <Text style={[styles.scoreValue, { color: conclusion.color }]}>{score}</Text>
-          <Text style={styles.scoreLabel}>Puntuación de sueño</Text>
-          <View style={[styles.conclusionBadge, { borderColor: conclusion.color }]}>
-            <Text style={[styles.conclusionText, { color: conclusion.color }]}>{conclusion.label}</Text>
+        <GlassCard style={[styles.riskCard, { backgroundColor: riskVisual.softColor, borderColor: riskVisual.color }]}>
+          <Text style={[styles.riskLabel, { color: riskVisual.color }]}>Nivel de riesgo de apnea</Text>
+          <Text style={[styles.riskTitle, { color: riskVisual.color }]}>{riskVisual.label}</Text>
+          <Text style={styles.riskMessage}>{riskVisual.interpretation}</Text>
+          <View style={[styles.nextPanel, { backgroundColor: palette.surface }]}>
+            <Text style={styles.nextLabel}>Recomendación</Text>
+            <Text style={styles.nextText}>{riskVisual.nextStep}</Text>
           </View>
-          <Text style={styles.conclusionMessage}>{conclusion.message}</Text>
         </GlassCard>
 
         <View style={styles.metricRow}>
-          <MetricCard label="Duración" value={formatDurationMinutes(session?.start_time, session?.end_time)} />
-          <MetricCard
-            label="Apneas"
-            value={String(apnea)}
-            valueColor={apnea > 0 ? palette.danger : palette.mint}
-          />
+          <MetricCard label="Apneas" value={String(apnea)} valueColor={apnea > 0 ? palette.danger : palette.success} />
           <MetricCard label="Ronquidos" value={String(snore)} />
+          <MetricCard label="Calidad" value={String(score)} />
+        </View>
+
+        <View style={styles.metricRow}>
+          <MetricCard label="Duración" value={formatDurationMinutes(session?.start_time, session?.end_time)} />
+          <MetricCard label="Sesión" value={session?.end_time ? 'Cerrada' : 'Sin cerrar'} valueColor={palette.primary} />
         </View>
 
         {session?.analysis_label ? (
@@ -130,44 +111,49 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
   },
-  scoreCard: {
-    alignItems: 'center',
-    borderColor: 'rgba(110,247,207,0.3)',
-    backgroundColor: 'rgba(9,22,18,0.84)',
-    paddingVertical: 22,
+  riskCard: {
+    paddingVertical: 18,
   },
-  scoreValue: {
-    fontFamily: fonts.heading,
-    fontSize: 64,
-    lineHeight: 70,
-  },
-  scoreLabel: {
-    marginTop: 2,
-    color: palette.textMuted,
+  riskLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: 12,
+    fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  conclusionBadge: {
-    marginTop: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+  riskTitle: {
+    marginTop: 8,
+    fontFamily: fonts.heading,
+    fontSize: 36,
+    lineHeight: 40,
   },
-  conclusionText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-  },
-  conclusionMessage: {
-    marginTop: 12,
+  riskMessage: {
+    marginTop: 8,
     color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  nextPanel: {
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  nextLabel: {
+    color: palette.primary,
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  nextText: {
+    marginTop: 4,
+    color: palette.textPrimary,
     fontFamily: fonts.bodyRegular,
     fontSize: 13,
     lineHeight: 19,
-    textAlign: 'center',
-    paddingHorizontal: 10,
   },
   metricRow: {
     flexDirection: 'row',
@@ -181,8 +167,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   actionsCard: {
-    borderColor: 'rgba(149,178,255,0.34)',
-    backgroundColor: 'rgba(13,18,31,0.82)',
+    borderColor: 'rgba(37,99,235,0.3)',
+    backgroundColor: palette.surface,
   },
   actionsHint: {
     color: palette.textSecondary,

@@ -180,7 +180,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.badge}>Perfil</Text>
         <Text style={styles.title}>Cuenta y salud personal</Text>
-        <Text style={styles.subtitle}>Completa tu información para personalizar mejor tu seguimiento de sueño.</Text>
+        <Text style={styles.subtitle}>Completa tu información para mejorar el análisis de tu riesgo de apnea.</Text>
 
         <GlassCard style={styles.profileCard}>
           <Text style={styles.name}>{fullName}</Text>
@@ -235,7 +235,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
               closingSession ? styles.disabled : null,
             ]}
           >
-            {closingSession ? <ActivityIndicator color="#180404" /> : <Text style={styles.signOutText}>Cerrar sesión</Text>}
+            {closingSession ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.signOutText}>Cerrar sesión</Text>}
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -244,7 +244,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
         <GlassCard>
           <Text style={styles.legalTitle}>Aviso médico</Text>
           <Text style={styles.legalText}>
-            A.S.A.P. es una herramienta de apoyo para monitoreo del sueño y no reemplaza diagnóstico ni tratamiento médico profesional.
+            A.S.A.P. es una herramienta de apoyo para el monitoreo de apneas y no reemplaza diagnóstico ni tratamiento médico profesional.
           </Text>
         </GlassCard>
       </ScrollView>
@@ -308,7 +308,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
                 <Text style={styles.modalGhostText}>Cancelar</Text>
               </Pressable>
               <Pressable style={styles.modalPrimary} onPress={handleSaveSurvey} disabled={savingSurvey}>
-                {savingSurvey ? <ActivityIndicator color="#03110C" /> : <Text style={styles.modalPrimaryText}>Guardar</Text>}
+                {savingSurvey ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalPrimaryText}>Guardar</Text>}
               </Pressable>
             </View>
           </View>
@@ -329,9 +329,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.35)',
-    backgroundColor: 'rgba(110,247,207,0.09)',
-    color: palette.mint,
+    borderColor: 'rgba(37,99,235,0.35)',
+    backgroundColor: palette.primarySoft,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   profileCard: {
-    borderColor: 'rgba(110,247,207,0.3)',
-    backgroundColor: 'rgba(8,18,15,0.82)',
+    borderColor: 'rgba(37,99,235,0.28)',
+    backgroundColor: palette.surface,
   },
   name: {
     color: palette.textPrimary,
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
   infoItem: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -396,21 +396,21 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.1)',
+    borderColor: 'rgba(37,99,235,0.36)',
+    backgroundColor: palette.primarySoft,
     alignItems: 'center',
     paddingVertical: 11,
   },
   surveyButtonText: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
   },
   ghostButton: {
     marginTop: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     alignItems: 'center',
     paddingVertical: 11,
   },
@@ -422,13 +422,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,141,141,0.45)',
-    backgroundColor: 'rgba(255,141,141,0.15)',
+    borderColor: 'rgba(220,38,38,0.45)',
+    backgroundColor: palette.dangerSoft,
     alignItems: 'center',
     paddingVertical: 11,
   },
   emergencyButtonText: {
-    color: '#FFC8C8',
+    color: palette.danger,
     fontFamily: fonts.bodyBold,
     fontSize: 13,
   },
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   signOutText: {
-    color: '#180404',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
     fontSize: 15,
   },
@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     marginTop: 10,
-    color: palette.warning,
+    color: palette.danger,
     fontFamily: fonts.bodyRegular,
     lineHeight: 18,
   },
   legalTitle: {
-    color: palette.warning,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     textTransform: 'uppercase',
     letterSpacing: 0.9,
@@ -471,15 +471,15 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(15,23,42,0.5)',
     justifyContent: 'flex-end',
   },
   modalCard: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: '#07110F',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     padding: 16,
     maxHeight: '86%',
   },
@@ -503,9 +503,9 @@ const styles = StyleSheet.create({
   },
   questionCard: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: palette.borderSoft,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: palette.panelStrong,
     padding: 10,
   },
   questionTitle: {
@@ -522,14 +522,14 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   chipSelected: {
-    borderColor: 'rgba(110,247,207,0.68)',
-    backgroundColor: 'rgba(110,247,207,0.16)',
+    borderColor: 'rgba(37,99,235,0.68)',
+    backgroundColor: palette.primarySoft,
   },
   chipText: {
     color: palette.textSecondary,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   chipTextSelected: {
-    color: palette.mint,
+    color: palette.primary,
   },
   modalActions: {
     marginTop: 10,
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: palette.borderSoft,
     alignItems: 'center',
     paddingVertical: 10,
   },
@@ -559,12 +559,12 @@ const styles = StyleSheet.create({
   modalPrimary: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
     alignItems: 'center',
     paddingVertical: 10,
   },
   modalPrimaryText: {
-    color: '#03110C',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
   },
 });
