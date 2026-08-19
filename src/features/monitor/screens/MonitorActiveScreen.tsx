@@ -12,6 +12,8 @@ import { getEmergencyAlertSettings } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
 import { useApneaDetection } from '../../../hooks/useApneaDetection';
 import ApneaResultCard from '../../../components/ApneaResultCard';
+import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
+import { riskFromPredictionNivel } from '../../../utils/apneaRisk';
 
 interface RouteParams {
   sessionId?: string;
@@ -172,6 +174,9 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   };
 
   const elapsedLabel = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
+
+  const latestPrediction = useMemo(() => predictions[predictions.length - 1] || null, [predictions]);
+  const riskVisual = useMemo(() => riskFromPredictionNivel(latestPrediction?.nivel), [latestPrediction]);
 
   const clearFragmentTimer = () => {
     if (fragmentTimerRef.current) {
@@ -356,6 +361,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
         if (mountedRef.current && result) {
           setPredictions((prev) => [...prev.slice(-4), result]);
+          setStatusText('Análisis actualizado con tu último fragmento.');
 
           if (result.nivel === 'CRITICO' && emergencySettingsRef.current?.enabled) {
             try {
@@ -567,10 +573,47 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         <Text style={styles.timer}>{elapsedLabel}</Text>
       </View>
 
-      <Text style={styles.sessionText}>Monitoreo en curso</Text>
+      <View style={[styles.riskCard, { backgroundColor: riskVisual.softColor, borderColor: riskVisual.color }]}>
+        <Text style={[styles.riskLabel, { color: riskVisual.color }]}>Riesgo de apnea en vivo</Text>
+        <View style={styles.riskRow}>
+          <View style={styles.riskTextWrap}>
+            <Text style={[styles.riskTitle, { color: riskVisual.color }]}>{riskVisual.label}</Text>
+            <Text style={styles.riskSubtitle}>{riskVisual.interpretation}</Text>
+          </View>
+          {latestPrediction ? (
+            <View style={[styles.probBadge, { borderColor: riskVisual.color }]}>
+              <Text style={[styles.probValue, { color: riskVisual.color }]}>
+                {(latestPrediction.probabilidad * 100).toFixed(0)}%
+              </Text>
+              <Text style={styles.probLabel}>certeza</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
       <Text style={styles.modeText}>
         {monitoringMode === 'cell_oximeter' ? 'Modo: Celular + oxímetro' : 'Modo: Solo celular'}
       </Text>
+
+      {predictions.length > 0 ? (
+        <View style={styles.spo2Row}>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Fragmentos analizados</Text>
+            <Text style={styles.metricValue}>{predictions.length}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>SpO2 (aprox.)</Text>
+            <Text style={styles.metricValue}>{spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : '--'}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Estado</Text>
+            <Text style={[styles.metricValue, { color: isMonitoring ? palette.success : palette.danger, fontSize: 16 }]}>
+              {isMonitoring ? 'Activo' : 'Detenido'}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       <Text style={styles.statusText}>{statusText}</Text>
 
       <View style={styles.waveWrap}>
@@ -578,21 +621,6 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
           const barHeight = Math.max(8, Math.round(point * 96));
           return <View key={`wave-${index}`} style={[styles.waveBar, { height: barHeight }]} />;
         })}
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Fragmentos</Text>
-          <Text style={styles.metricValue}>{capturedFragments}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Subidos</Text>
-          <Text style={styles.metricValue}>{uploadedFragments}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Pendientes</Text>
-          <Text style={styles.metricValue}>{pendingUploads}</Text>
-        </View>
       </View>
 
       {silentErrors > 0 ? (
@@ -603,29 +631,24 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
       {isPreparing ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={palette.mint} />
+          <ActivityIndicator color={palette.primary} />
           <Text style={styles.loadingText}>Solicitando permisos de audio...</Text>
         </View>
       ) : null}
 
       {predictions.length > 0 && (
-        <View style={styles.apneaSection}>
-          <Text style={styles.apneaSectionTitle}>Análisis de la noche</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.predictionsScroll}
-          >
-            {predictions.map((pred, idx) => (
-              <View key={`pred-${idx}`} style={styles.predictionCardWrapper}>
-                <ApneaResultCard result={pred} />
-              </View>
-            ))}
-          </ScrollView>
-          <Text style={styles.spo2Info}>
-            Oxigenación: {spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : 'en espera'}
-          </Text>
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.predictionsScroll}
+          contentContainerStyle={styles.predictionsContent}
+        >
+          {predictions.slice(-4).map((pred, idx) => (
+            <View key={`pred-${idx}`} style={styles.predictionCardWrapper}>
+              <ApneaResultCard result={pred} />
+            </View>
+          ))}
+        </ScrollView>
       )}
 
       {!permissionGranted ? (
@@ -648,7 +671,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: palette.background,
     paddingHorizontal: 20,
     paddingTop: 28,
     paddingBottom: 26,
@@ -659,7 +682,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badge: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -670,32 +693,103 @@ const styles = StyleSheet.create({
     fontFamily: fonts.headingMedium,
     fontSize: 28,
   },
-  sessionText: {
+  riskCard: {
     marginTop: 14,
-    color: palette.textPrimary,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  riskLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  riskRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  riskTextWrap: {
+    flex: 1,
+  },
+  riskTitle: {
     fontFamily: fonts.heading,
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 34,
+  },
+  riskSubtitle: {
+    marginTop: 6,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  probBadge: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  probValue: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+  },
+  probLabel: {
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 10,
   },
   modeText: {
-    marginTop: 6,
+    marginTop: 12,
     color: palette.textMuted,
     fontFamily: fonts.body,
     fontSize: 13,
   },
+  spo2Row: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metricCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  metricLabel: {
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  metricValue: {
+    marginTop: 6,
+    color: palette.textPrimary,
+    fontFamily: fonts.headingMedium,
+    fontSize: 22,
+  },
   statusText: {
-    marginTop: 8,
+    marginTop: 12,
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
   },
   waveWrap: {
-    marginTop: 26,
-    height: 110,
+    marginTop: 14,
+    height: 96,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: '#F8FAFD',
     paddingHorizontal: 10,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -705,35 +799,8 @@ const styles = StyleSheet.create({
   waveBar: {
     width: 7,
     borderRadius: 6,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
     opacity: 0.9,
-  },
-  metricRow: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  metricCard: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
-  metricLabel: {
-    color: palette.textMuted,
-    fontFamily: fonts.bodyRegular,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  metricValue: {
-    marginTop: 6,
-    color: palette.textPrimary,
-    fontFamily: fonts.headingMedium,
-    fontSize: 24,
   },
   microText: {
     marginTop: 10,
@@ -751,10 +818,20 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
   },
+  predictionsScroll: {
+    marginTop: 14,
+  },
+  predictionsContent: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+  predictionCardWrapper: {
+    minWidth: 270,
+  },
   stopButton: {
-    marginTop: 'auto',
+    marginTop: 18,
     borderRadius: 14,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.danger,
     alignItems: 'center',
     paddingVertical: 14,
   },
@@ -762,53 +839,21 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   stopButtonText: {
-    color: '#02120D',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
     fontSize: 15,
   },
   secondaryButton: {
-    marginTop: 'auto',
+    marginTop: 18,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     alignItems: 'center',
     paddingVertical: 14,
   },
   secondaryButtonText: {
     color: palette.textPrimary,
     fontFamily: fonts.body,
-  },
-  apneaSection: {
-    marginTop: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  apneaSectionTitle: {
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  predictionsScroll: {
-    marginHorizontal: -12,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  predictionCardWrapper: {
-    marginRight: 10,
-    minWidth: 260,
-  },
-  spo2Info: {
-    color: palette.textMuted,
-    fontFamily: fonts.bodyRegular,
-    fontSize: 10,
-    lineHeight: 16,
   },
 });

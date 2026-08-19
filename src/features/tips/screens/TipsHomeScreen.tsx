@@ -12,10 +12,10 @@ export default function TipsHomeScreen({ navigation }: { navigation: { navigate:
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.badge}>Consejos</Text>
-        <Text style={styles.title}>Centro interactivo de sueño</Text>
+        <Text style={styles.badge}>Prevención</Text>
+        <Text style={styles.title}>Centro de prevención de apnea</Text>
         <Text style={styles.subtitle}>
-          Cada apartado tiene guía práctica, checklist y fuentes en español con foco en Colombia.
+          Guía práctica y fuentes en español, con foco en reducir el riesgo de apnea durante el sueño.
         </Text>
 
         {TIPS_MODULES.map((module) => (
@@ -36,7 +36,7 @@ export default function TipsHomeScreen({ navigation }: { navigation: { navigate:
         <GlassCard style={styles.helperCard}>
           <Text style={styles.helperTitle}>¿Cómo usar esta sección?</Text>
           <View style={styles.helperRows}>
-            <Text style={styles.helperBullet}>1. Elige un módulo según tu necesidad actual.</Text>
+            <Text style={styles.helperBullet}>1. Elige un módulo según tu situación actual.</Text>
             <Text style={styles.helperBullet}>2. Marca acciones completadas en el checklist.</Text>
             <Text style={styles.helperBullet}>3. Revisa fuentes oficiales para ampliar información.</Text>
           </View>
@@ -57,9 +57,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.35)',
-    backgroundColor: 'rgba(110,247,207,0.09)',
-    color: palette.mint,
+    borderColor: 'rgba(37,99,235,0.35)',
+    backgroundColor: palette.primarySoft,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   moduleCard: {
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   moduleTopRow: {
     flexDirection: 'row',
@@ -113,11 +113,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   helperCard: {
-    borderColor: 'rgba(149,178,255,0.34)',
-    backgroundColor: 'rgba(13,18,31,0.82)',
+    borderColor: 'rgba(37,99,235,0.3)',
+    backgroundColor: palette.surface,
   },
   helperTitle: {
-    color: '#D6DEFF',
+    color: palette.primary,
     fontFamily: fonts.headingMedium,
     fontSize: 22,
   },

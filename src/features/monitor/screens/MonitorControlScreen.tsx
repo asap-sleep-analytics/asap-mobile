@@ -1,8 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
 import GlassCard from '../../../components/GlassCard';
 import SectionBadge from '../../../components/SectionBadge';
 import { AppContext } from '../../../context/AppContext';
@@ -18,6 +19,7 @@ import {
 import { getConnectedOximeter, isOximeterConnected } from '../../../services/oximeterBluetooth';
 import { fonts, palette } from '../../../theme/tokens';
 import type { MonitorMode, SleepDiaryEntry, SleepSessionStartPayload } from '../../../types';
+import { riskFromApneaEvents } from '../../../utils/apneaRisk';
 
 const NOISE_CALIBRATION_TOTAL_MS = 5000;
 const NOISE_CALIBRATION_SAMPLE_MS = 250;
@@ -203,6 +205,8 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   const latestFinished = useMemo(() => sessions.find((session: any) => !!session.end_time) || null, [sessions]);
 
+  const epilepsyRisk = useMemo(() => riskFromApneaEvents(latestFinished?.apnea_events ?? 0), [latestFinished?.apnea_events]);
+
   const handleContinue = () => {
     const ambientNoiseLevel = toNumberOrUndefined(ambientNoise);
     navigation.navigate('MonitorActive', {
@@ -261,22 +265,41 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <SectionBadge label="Monitor de sueño" />
-      <Text style={styles.title}>Tu descanso, en tus manos</Text>
-      <Text style={styles.subtitle}>Inicia el monitoreo nocturno o registra manualmente tus horas de sueño.</Text>
+      <SectionBadge label="Monitoreo nocturno" />
+      <Text style={styles.title}>Vigila tu respiración mientras duermes</Text>
+      <Text style={styles.subtitle}>Inicia una sesión para detectar apneas y ronquido durante la noche.</Text>
 
-      <View style={styles.metricGrid}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Sesión activa</Text>
-          <Text style={styles.metricValue}>{openSession ? 'Sí' : 'No'}</Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Último puntaje</Text>
-          <Text style={styles.metricValue}>{latestFinished?.sleep_score ?? '--'}</Text>
-        </View>
-      </View>
+      <GlassCard style={styles.startCard}>
+        <Text style={styles.startHint}>
+          {openSession
+            ? 'Ya tienes una sesión comenzada. Puedes continuarla o iniciar una nueva.'
+            : 'A.S.A.P. usará el micrófono del celular para registrar fragmentos y analizarlos.'}
+        </Text>
 
-      <Text style={styles.sectionTitle}>Configuración rápida</Text>
+        <Pressable
+          onPress={handleStart}
+          disabled={working}
+          style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null, working ? styles.disabled : null]}
+        >
+          {working ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.primaryButtonText}>
+              {openSession ? 'Continuar monitoreo' : 'Iniciar monitoreo ahora'}
+            </Text>
+          )}
+        </Pressable>
+
+        {latestFinished ? (
+          <View style={styles.lastRow}>
+            <Text style={styles.lastLabel}>Última noche</Text>
+            <ApneaRiskBadge visual={epilepsyRisk} size="sm" />
+          </View>
+        ) : null}
+      </GlassCard>
+
+      <Text style={styles.sectionTitle}>Preparación</Text>
+
       <GlassCard style={styles.modeCard}>
         <Text style={styles.modeTitle}>Modo de monitoreo</Text>
         <View style={styles.modeRow}>
@@ -309,8 +332,8 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         </View>
         <Text style={styles.modeHint}>
           {monitorMode === 'cell_only'
-            ? 'Usa solo el micrófono del celular para el monitoreo nocturno.'
-            : `Estado del oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || 'OK'})` : 'Sin conexión'}`}
+            ? 'Usa el micrófono del celular. La precisión mejora con el oxímetro.'
+            : `Oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || 'OK'})` : 'Sin conexión'}`}
         </Text>
         <Pressable
           onPress={() => navigation.navigate('OximeterConnect')}
@@ -320,87 +343,42 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         </Pressable>
       </GlassCard>
 
-      <Text style={styles.label}>Ruido ambiente objetivo (en decibeles)</Text>
-      <TextInput
-        value={ambientNoise}
-        onChangeText={(value: string) => {
-          setAmbientNoise(value);
-          setLastNoiseCalibrationAt(null);
-          lastNoiseCalibrationAtRef.current = null;
-        }}
-        style={styles.input}
-        keyboardType="decimal-pad"
-        placeholder="45"
-        placeholderTextColor={palette.textMuted}
-      />
-      <View style={styles.noiseMetaRow}>
-        <Text style={styles.noiseHint}>
+      <GlassCard style={styles.noiseCard}>
+        <Text style={styles.modeTitle}>Ruido ambiente</Text>
+        <Text style={styles.noiseMetaText}>
           {isCalibratingNoise
             ? `Midiendo el ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
             : lastNoiseCalibrationAt
-            ? `Valor automático (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)})`
-            : 'Puedes ajustar el valor manualmente si lo deseas.'}
+            ? `Calibrado automáticamente (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)}), ~${ambientNoise} dB`
+            : `Nivel objetivo: ~${ambientNoise} dB. Puedes recalibrar.`}
         </Text>
         <Pressable
           onPress={() => autoCalibrateAmbientNoise(true)}
           disabled={isCalibratingNoise || working}
           style={({ pressed }) => [
-            styles.recalibrateButton,
+            styles.secondaryButton,
             (isCalibratingNoise || working) ? styles.disabled : null,
             pressed ? styles.pressed : null,
           ]}
         >
-          <Text style={styles.recalibrateButtonText}>
-            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Medir de nuevo'}
+          <Text style={styles.secondaryButtonText}>
+            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Medir ruido ambiente'}
           </Text>
         </Pressable>
-      </View>
-
-      <Pressable
-        onPress={handleStart}
-        disabled={working}
-        style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null, working ? styles.disabled : null]}
-      >
-        {working ? (
-          <ActivityIndicator color="#03110C" />
-        ) : (
-            <Text style={styles.primaryButtonText}>
-              {openSession
-                ? 'Continuar monitoreo'
-                : monitorMode === 'cell_only'
-                ? 'Iniciar monitoreo con el celular'
-                : 'Iniciar monitoreo celular + oxímetro'}
-            </Text>
-        )}
-      </Pressable>
+      </GlassCard>
 
       <GlassCard style={styles.diaryPromoCard}>
-        <Text style={styles.diaryPromoTitle}>Horas de sueño</Text>
-        
-        {sleepDiaryEntries.length > 0 && (
-          <View style={styles.diaryList}>
-            <Text style={styles.diaryListLabel}>Últimos registros</Text>
-            {sleepDiaryEntries.slice(0, 3).map((entry: SleepDiaryEntry) => (
-              <View key={entry.id} style={styles.diaryItem}>
-                <Text style={styles.diaryItemDate}>
-                  {new Date(entry.date).toLocaleDateString('es-CO')}
-                </Text>
-                <Text style={styles.diaryItemTime}>
-                  {entry.bedtime} - {entry.wakeTime}
-                </Text>
-                <Text style={styles.diaryItemHours}>
-                  {entry.estimatedHours}h
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
+        <Text style={styles.modeTitle}>Registro de horas de sueño</Text>
+        <Text style={styles.noiseMetaText}>
+          {sleepDiaryEntries.length > 0
+            ? `Llevas ${sleepDiaryEntries.length} registros guardados.`
+            : 'Aún no registras tu horario de sueño. Es útil para el análisis.'}
+        </Text>
         <Pressable
           onPress={() => navigation.navigate('SleepDiary')}
-          style={({ pressed }) => [styles.diaryPromoButton, pressed ? styles.pressed : null]}
+          style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}
         >
-          <Text style={styles.diaryPromoButtonText}>
+          <Text style={styles.secondaryButtonText}>
             {sleepDiaryEntries.length > 0 ? 'Actualizar registro' : 'Registrar horas de sueño'}
           </Text>
         </Pressable>
@@ -410,7 +388,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         <Text style={styles.ghostButtonText}>Actualizar estado</Text>
       </Pressable>
 
-      {loading ? <ActivityIndicator color={palette.mint} style={styles.loader} /> : null}
+      {loading ? <ActivityIndicator color={palette.primary} style={styles.loader} /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Modal visible={showIntroModal} transparent animationType="fade" onRequestClose={() => setShowIntroModal(false)}>
@@ -445,34 +423,20 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: palette.background,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 22,
+    paddingTop: 18,
     paddingBottom: 30,
     gap: 12,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.1)',
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
   title: {
-    marginTop: 12,
+    marginTop: 10,
     color: palette.textPrimary,
     fontFamily: fonts.heading,
-    fontSize: 32,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 34,
   },
   subtitle: {
     marginTop: 6,
@@ -480,44 +444,51 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
   },
-  metricGrid: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
+  startCard: {
+    borderColor: 'rgba(37,99,235,0.3)',
+    backgroundColor: '#FFFFFF',
   },
-  metricCard: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  metricLabel: {
-    color: palette.textMuted,
+  startHint: {
+    color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    lineHeight: 19,
+    marginBottom: 12,
   },
-  metricValue: {
-    marginTop: 6,
-    color: palette.textPrimary,
-    fontFamily: fonts.headingMedium,
-    fontSize: 28,
+  primaryButton: {
+    borderRadius: 14,
+    backgroundColor: palette.primary,
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  primaryButtonText: {
+    color: palette.white,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+  },
+  lastRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lastLabel: {
+    color: palette.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   sectionTitle: {
     marginTop: 8,
-    color: palette.warning,
+    color: palette.textSecondary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   modeCard: {
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(12,30,24,0.85)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   modeTitle: {
     color: palette.textPrimary,
@@ -527,21 +498,22 @@ const styles = StyleSheet.create({
   modeRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 10,
   },
   modeChip: {
     flex: 1,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.28)',
-    backgroundColor: 'transparent',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
   },
   modeChipActive: {
-    borderColor: palette.mint,
-    backgroundColor: 'rgba(110,247,207,0.15)',
+    borderColor: palette.primary,
+    backgroundColor: palette.primarySoft,
   },
   modeChipText: {
     color: palette.textMuted,
@@ -549,7 +521,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   modeChipTextActive: {
-    color: palette.mint,
+    color: palette.primary,
   },
   modeHint: {
     color: palette.textSecondary,
@@ -561,144 +533,52 @@ const styles = StyleSheet.create({
   oximeterButton: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'transparent',
+    borderColor: 'rgba(37,99,235,0.4)',
+    backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 11,
     alignItems: 'center',
   },
   oximeterButtonText: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
   },
-  label: {
-    marginTop: 2,
-    marginBottom: 6,
-    color: palette.textSecondary,
-    fontFamily: fonts.body,
+  noiseCard: {
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    color: palette.textPrimary,
-    fontFamily: fonts.bodyRegular,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  noiseMetaRow: {
+  noiseMetaText: {
     marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  noiseHint: {
-    flex: 1,
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  recalibrateButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.45)',
-    borderRadius: 10,
-    backgroundColor: 'rgba(110,247,207,0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  recalibrateButtonText: {
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
     fontSize: 12,
+    lineHeight: 18,
   },
-  primaryButton: {
-    marginTop: 8,
-    borderRadius: 14,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    paddingVertical: 13,
-  },
-  primaryButtonText: {
-    color: '#03110C',
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-  },
-  diaryPromoCard: {
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(12,30,24,0.85)',
-  },
-  diaryPromoTitle: {
-    color: '#C0FFDB',
-    fontFamily: fonts.headingMedium,
-    fontSize: 18,
-  },
-  diaryList: {
-    marginTop: 10,
-    gap: 6,
-  },
-  diaryListLabel: {
-    color: palette.textMuted,
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 4,
-  },
-  diaryItem: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.24)',
-    backgroundColor: 'rgba(110,247,207,0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  diaryItemDate: {
-    flex: 1,
-    color: palette.textSecondary,
-    fontFamily: fonts.bodyRegular,
-    fontSize: 11,
-  },
-  diaryItemTime: {
-    flex: 1,
-    color: palette.textPrimary,
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  diaryItemHours: {
-    flex: 0.5,
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    textAlign: 'right',
-  },
-  diaryPromoButton: {
-    marginTop: 10,
+  secondaryButton: {
+    marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.5)',
-    backgroundColor: 'rgba(110,247,207,0.16)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     alignItems: 'center',
     paddingVertical: 11,
   },
-  diaryPromoButtonText: {
-    color: '#C0FFDB',
+  secondaryButtonText: {
+    color: palette.textPrimary,
     fontFamily: fonts.bodyBold,
-    fontSize: 14,
+    fontSize: 13,
+  },
+  diaryPromoCard: {
+    borderColor: 'rgba(37,99,235,0.24)',
+    backgroundColor: palette.surface,
   },
   ghostButton: {
-    marginTop: 6,
+    marginTop: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     alignItems: 'center',
     paddingVertical: 11,
   },
@@ -723,15 +603,15 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.58)',
+    backgroundColor: 'rgba(15,23,42,0.55)',
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
   modalCard: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: '#07110F',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     padding: 16,
   },
   modalTitle: {
@@ -765,7 +645,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: palette.borderSoft,
     alignItems: 'center',
     paddingVertical: 10,
   },
@@ -776,12 +656,12 @@ const styles = StyleSheet.create({
   modalPrimary: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
     alignItems: 'center',
     paddingVertical: 10,
   },
   modalPrimaryText: {
-    color: '#03110C',
+    color: palette.white,
     fontFamily: fonts.bodyBold,
   },
 });

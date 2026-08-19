@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: palette.primarySoft,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   progressCard: {
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   progressTopRow: {
     flexDirection: 'row',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   progressValue: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.headingMedium,
     fontSize: 20,
   },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 999,
     height: 10,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: palette.panelStrong,
     overflow: 'hidden',
   },
   progressFill: {
@@ -217,8 +217,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   sectionCard: {
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   sectionToggle: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
   },
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bulletDot: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     marginTop: 2,
   },
@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
   checkItem: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 10,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -271,11 +271,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkItemSelected: {
-    borderColor: 'rgba(110,247,207,0.65)',
-    backgroundColor: 'rgba(110,247,207,0.12)',
+    borderColor: 'rgba(37,99,235,0.6)',
+    backgroundColor: palette.primarySoft,
   },
   checkIcon: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 14,
   },
@@ -294,13 +294,13 @@ const styles = StyleSheet.create({
   resourceButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(149,178,255,0.48)',
-    backgroundColor: 'rgba(149,178,255,0.16)',
+    borderColor: 'rgba(37,99,235,0.44)',
+    backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
   resourceButtonText: {
-    color: '#D9E1FF',
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 13,
   },

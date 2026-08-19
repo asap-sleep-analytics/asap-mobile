@@ -10,7 +10,7 @@ type LoadingStateProps = {
 export default function LoadingState({ message = 'Cargando...' }: LoadingStateProps) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={palette.mint} size="large" />
+      <ActivityIndicator color={palette.primary} size="large" />
       <Text style={styles.text}>{message}</Text>
     </View>
   );

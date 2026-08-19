@@ -17,13 +17,13 @@ export default function AmbientBackdrop({ children }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: palette.obsidian,
+    backgroundColor: palette.background,
   },
   glow: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: palette.mint,
-    opacity: 0.08,
+    backgroundColor: palette.primary,
+    opacity: 0.05,
   },
   glowTop: {
     width: 220,
@@ -42,6 +42,6 @@ const styles = StyleSheet.create({
     height: 180,
     top: 220,
     left: 180,
-    opacity: 0.05,
+    opacity: 0.03,
   },
 });

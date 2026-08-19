@@ -24,8 +24,8 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 8,
     paddingVertical: 12,
   },

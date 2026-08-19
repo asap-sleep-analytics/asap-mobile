@@ -17,7 +17,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     borderRadius: 18,
-    backgroundColor: palette.panel,
+    backgroundColor: palette.surface,
     padding: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
 });

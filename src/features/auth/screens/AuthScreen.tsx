@@ -68,11 +68,11 @@ export default function AuthScreen() {
 		<AmbientBackdrop>
 			<ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 				<Text style={styles.badge}>Acceso</Text>
-				<Text style={styles.title}>Inicia sesión o crea tu cuenta</Text>
+				<Text style={styles.title}>A.S.A.P. Detección de apnea</Text>
 				<Text style={styles.subtitle}>
 					{isRegisterMode
-						? 'Crea tu cuenta para comenzar a monitorear tu sueño de forma simple y segura.'
-						: 'Inicia sesión para ver tu progreso nocturno y recomendaciones.'}
+						? 'Crea tu cuenta para comenzar a monitorear tu respiración durante el sueño.'
+						: 'Inicia sesión para ver tu riesgo de apnea y tus monitoreos nocturnos.'}
 				</Text>
 
 				<GlassCard>
@@ -137,8 +137,8 @@ export default function AuthScreen() {
 								<Switch
 									value={roncaHabitualmente}
 									onValueChange={setRoncaHabitualmente}
-									trackColor={{ false: 'rgba(255,255,255,0.24)', true: 'rgba(110,247,207,0.5)' }}
-									thumbColor={roncaHabitualmente ? palette.mint : '#f4f3f4'}
+									trackColor={{ false: palette.borderSoft, true: palette.primarySoft }}
+									thumbColor={roncaHabitualmente ? palette.primary : '#f4f4f5'}
 								/>
 							</View>
 
@@ -147,8 +147,8 @@ export default function AuthScreen() {
 								<Switch
 									value={cansancioDiurno}
 									onValueChange={setCansancioDiurno}
-									trackColor={{ false: 'rgba(255,255,255,0.24)', true: 'rgba(110,247,207,0.5)' }}
-									thumbColor={cansancioDiurno ? palette.mint : '#f4f3f4'}
+									trackColor={{ false: palette.borderSoft, true: palette.primarySoft }}
+									thumbColor={cansancioDiurno ? palette.primary : '#f4f4f5'}
 								/>
 							</View>
 
@@ -157,8 +157,8 @@ export default function AuthScreen() {
 								<Switch
 									value={aceptaConsentimientoDatos}
 									onValueChange={setAceptaConsentimientoDatos}
-									trackColor={{ false: 'rgba(255,255,255,0.24)', true: 'rgba(110,247,207,0.5)' }}
-									thumbColor={aceptaConsentimientoDatos ? palette.mint : '#f4f3f4'}
+									trackColor={{ false: palette.borderSoft, true: palette.primarySoft }}
+									thumbColor={aceptaConsentimientoDatos ? palette.primary : '#f4f4f5'}
 								/>
 							</View>
 
@@ -167,8 +167,8 @@ export default function AuthScreen() {
 								<Switch
 									value={aceptaDisclaimerMedico}
 									onValueChange={setAceptaDisclaimerMedico}
-									trackColor={{ false: 'rgba(255,255,255,0.24)', true: 'rgba(110,247,207,0.5)' }}
-									thumbColor={aceptaDisclaimerMedico ? palette.mint : '#f4f3f4'}
+									trackColor={{ false: palette.borderSoft, true: palette.primarySoft }}
+									thumbColor={aceptaDisclaimerMedico ? palette.primary : '#f4f4f5'}
 								/>
 							</View>
 						</>
@@ -180,7 +180,7 @@ export default function AuthScreen() {
 						disabled={loading || legalPending}
 					>
 						{loading ? (
-							<ActivityIndicator color="#02120D" />
+							<ActivityIndicator color="#FFFFFF" />
 						) : (
 							<Text style={styles.submitButtonText}>{isRegisterMode ? 'Crear cuenta' : 'Entrar'}</Text>
 						)}
@@ -203,12 +203,12 @@ const styles = StyleSheet.create({
 	badge: {
 		alignSelf: 'flex-start',
 		borderWidth: 1,
-		borderColor: 'rgba(110,247,207,0.35)',
-		backgroundColor: 'rgba(110,247,207,0.08)',
+		borderColor: 'rgba(37,99,235,0.35)',
+		backgroundColor: palette.primarySoft,
 		borderRadius: 999,
 		paddingHorizontal: 10,
 		paddingVertical: 6,
-		color: palette.mint,
+		color: palette.primary,
 		fontFamily: fonts.bodyBold,
 		fontSize: 11,
 		textTransform: 'uppercase',
@@ -216,8 +216,8 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		marginTop: 14,
-		fontSize: 32,
-		lineHeight: 36,
+		fontSize: 30,
+		lineHeight: 34,
 		color: palette.textPrimary,
 		fontFamily: fonts.heading,
 	},
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
 	modeRow: {
 		marginTop: 4,
 		flexDirection: 'row',
-		backgroundColor: 'rgba(255,255,255,0.07)',
+		backgroundColor: palette.panelStrong,
 		borderRadius: 12,
 		padding: 4,
 		gap: 8,
@@ -243,16 +243,16 @@ const styles = StyleSheet.create({
 		paddingVertical: 10,
 	},
 	modeButtonActive: {
-		backgroundColor: 'rgba(110,247,207,0.18)',
+		backgroundColor: palette.primarySoft,
 		borderWidth: 1,
-		borderColor: 'rgba(110,247,207,0.4)',
+		borderColor: 'rgba(37,99,235,0.4)',
 	},
 	modeButtonText: {
 		color: palette.textSecondary,
 		fontFamily: fonts.body,
 	},
 	modeButtonTextActive: {
-		color: palette.mint,
+		color: palette.primary,
 	},
 	label: {
 		marginTop: 14,
@@ -262,9 +262,9 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.18)',
+		borderColor: palette.borderSoft,
 		borderRadius: 12,
-		backgroundColor: 'rgba(255,255,255,0.03)',
+		backgroundColor: palette.surface,
 		color: palette.textPrimary,
 		fontFamily: fonts.bodyRegular,
 		paddingHorizontal: 12,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
 	submitButton: {
 		marginTop: 20,
 		borderRadius: 12,
-		backgroundColor: palette.mint,
+		backgroundColor: palette.primary,
 		alignItems: 'center',
 		paddingVertical: 12,
 	},
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
 		opacity: 0.6,
 	},
 	submitButtonText: {
-		color: '#03110C',
+		color: '#FFFFFF',
 		fontSize: 15,
 		fontFamily: fonts.bodyBold,
 	},

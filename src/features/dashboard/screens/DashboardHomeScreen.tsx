@@ -14,18 +14,14 @@ import CircularProgress from 'react-native-circular-progress-indicator';
 import { LineChart } from 'react-native-wagmi-charts';
 
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
+import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
 import GlassCard from '../../../components/GlassCard';
 import { getApiErrorMessage, getDashboardSummary, listSleepDetections, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
 import type { DetectionLog, SleepContinuityPoint, SleepSessionRecord } from '../../../types';
+import { riskFromApneaEvents } from '../../../utils/apneaRisk';
 
 const DEFAULT_DISCLAIMER = 'A.S.A.P. no reemplaza diagnostico clinico profesional.';
-
-interface ScoreVisual {
-  label: string;
-  color: string;
-  subtitle: string;
-}
 
 interface TimelinePoint {
   timestamp: number;
@@ -44,16 +40,6 @@ interface DashboardSummaryResponse {
     continuidad?: SleepContinuityPoint[];
   };
   disclaimer_medico?: string;
-}
-
-function getScoreVisual(score: number, apneaEvents: number): ScoreVisual {
-  if (score >= 82 && apneaEvents <= 2) {
-    return { label: 'Recuperador', color: palette.mint, subtitle: 'Descanso estable' };
-  }
-  if (score >= 65) {
-    return { label: 'Vigilancia', color: palette.warning, subtitle: 'Ritmo intermedio' };
-  }
-  return { label: 'Alerta', color: palette.danger, subtitle: 'Sueño fragmentado' };
 }
 
 function resolveSessionStartMs(sessionStart: string | null | undefined, fallbackCount: number): number {
@@ -114,30 +100,6 @@ function buildFallbackTimeline(): TimelinePoint[] {
   }));
 }
 
-function buildDailyPlan(score: number, apneaEvents: number, snoreEvents: number): string[] {
-  const actions: string[] = [];
-
-  if (score < 65) {
-    actions.push('Prioriza una hora fija para dormir hoy y evita pantallas la última hora antes de acostarte.');
-  } else {
-    actions.push('Mantén la misma rutina de sueño de ayer para reforzar la continuidad nocturna.');
-  }
-
-  if (apneaEvents >= 4) {
-    actions.push('Se detectaron varios eventos respiratorios. Intenta dormir de lado y considera consulta clínica.');
-  } else {
-    actions.push('Los eventos respiratorios estuvieron controlados. Continúa con higiene de sueño constante.');
-  }
-
-  if (snoreEvents >= 12) {
-    actions.push('Hubo ronquido elevado. Evita alcohol nocturno y revisa congestión nasal antes de dormir.');
-  } else {
-    actions.push('El ronquido fue moderado o bajo. Mantén tu ambiente silencioso y ventilado.');
-  }
-
-  return actions;
-}
-
 interface LoadingStateProps {
   pulse: Animated.Value;
 }
@@ -146,8 +108,8 @@ function LoadingState({ pulse }: LoadingStateProps) {
   return (
     <GlassCard style={styles.loadingCard as any}>
       <View style={styles.loadingHeaderRow}>
-        <Text style={styles.sectionTitle}>Preparando tu resumen</Text>
-        <ActivityIndicator color={palette.mint} size="small" />
+        <Text style={styles.sectionTitle}>Preparando tu análisis de apnea</Text>
+        <ActivityIndicator color={palette.primary} size="small" />
       </View>
       <Text style={styles.loadingSubtitle}>Cargando la información de tu última noche...</Text>
       <Animated.View style={[styles.loadingBarLarge, { opacity: pulse }]} />
@@ -157,12 +119,11 @@ function LoadingState({ pulse }: LoadingStateProps) {
   );
 }
 
-export default function DashboardHomeScreen({ navigation }: { navigation: { getParent: () => { navigate: (screen: string) => void } | undefined } }) {
+export default function DashboardHomeScreen({ navigation }: { navigation: { getParent: () => { navigate: (screen: string) => void } | undefined; navigate: (screen: string) => void } }) {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
-  const isVeryCompact = width < 350;
   const chartWidth = Math.max(170, width - (isCompact ? 112 : 96));
-  const scoreRadius = isVeryCompact ? 54 : isCompact ? 60 : 66;
+  const scoreRadius = isCompact ? 60 : 66;
 
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [sessions, setSessions] = useState<SleepSessionRecord[]>([]);
@@ -200,7 +161,7 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
         setDetections([]);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'No fue posible cargar el dashboard.'));
+      setError(getApiErrorMessage(err, 'No fue posible cargar el análisis de riesgo.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -235,8 +196,8 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
   const apneaCount = latestSession?.apnea_events ?? summaryEvents.apnea ?? 0;
   const snoreCount = latestSession?.snore_count ?? summaryEvents.ronquidos ?? 0;
   const sleepScore = latestSession?.sleep_score ?? summary?.indicadores?.sleep_score ?? 0;
-  const scoreVisual = useMemo(() => getScoreVisual(sleepScore, apneaCount), [sleepScore, apneaCount]);
-  const dailyPlan = useMemo(() => buildDailyPlan(sleepScore, apneaCount, snoreCount), [sleepScore, apneaCount, snoreCount]);
+
+  const riskVisual = useMemo(() => riskFromApneaEvents(apneaCount), [apneaCount]);
 
   const continuityData = useMemo(() => {
     const fromDetections = buildTimelineFromDetections(detections, latestSession?.start_time);
@@ -251,6 +212,8 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
     return buildFallbackTimeline();
   }, [detections, latestSession?.start_time, summary?.indicadores?.continuidad]);
+
+  const hasData = latestSession || summary?.indicadores?.sleep_score;
 
   if (loading && !summary) {
     return (
@@ -267,19 +230,20 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
+        <ApneaRiskBadge visual={riskVisual} size="md" />
+
         <GlassCard style={styles.heroCard as any}>
           <View style={[styles.heroLayout, isCompact ? styles.heroLayoutCompact : null]}>
             <View style={[styles.heroTextWrap, isCompact ? styles.heroTextWrapCompact : null]}>
-              <Text style={styles.heroEyebrow}>Tu noche, en un vistazo</Text>
-              <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>Resumen de sueño de anoche</Text>
+              <Text style={styles.heroEyebrow}>Tu última noche</Text>
+              <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>Análisis de apnea</Text>
               <Text style={[styles.heroSubtitle, isCompact ? styles.heroSubtitleCompact : null]}>
-                Revisa tu puntuación, eventos y continuidad de forma clara para tomar mejores decisiones hoy.
+                {riskVisual.interpretation}
               </Text>
-              <View style={styles.heroMetaRow}>
-                <View style={styles.heroMetaBadge}>
-                  <Text style={[styles.heroMetaText, { color: scoreVisual.color }]}>{scoreVisual.label}</Text>
-                </View>
-                <Text style={styles.heroMetaValue}>{scoreVisual.subtitle}</Text>
+
+              <View style={[styles.riskPanel, { backgroundColor: riskVisual.softColor, borderColor: riskVisual.color }]}>
+                <Text style={[styles.riskStepLabel, { color: riskVisual.color }]}>Qué hacer hoy</Text>
+                <Text style={styles.riskStepText}>{riskVisual.nextStep}</Text>
               </View>
             </View>
 
@@ -289,21 +253,28 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
                 radius={scoreRadius}
                 maxValue={100}
                 duration={1300}
-                activeStrokeColor={scoreVisual.color}
-                inActiveStrokeColor="rgba(255,255,255,0.16)"
-                inActiveStrokeOpacity={0.35}
+                activeStrokeColor={riskVisual.color}
+                inActiveStrokeColor="#E2E8F0"
+                inActiveStrokeOpacity={1}
                 activeStrokeWidth={isCompact ? 12 : 14}
                 inActiveStrokeWidth={isCompact ? 12 : 14}
                 progressValueColor={palette.textPrimary}
-                progressValueStyle={{ ...styles.scoreValue, ...(isCompact ? styles.scoreValueCompact : {}) }}
-                title="Puntuación de sueño"
+                progressValueStyle={styles.scoreValue}
+                title="Calidad"
                 titleStyle={styles.scoreTitle}
-                subtitle={scoreVisual.label}
-                subtitleStyle={{ ...styles.scoreSubtitle, color: scoreVisual.color }}
+                subtitle={sleepScore >= 65 ? 'Aceptable' : 'A mejorar'}
+                subtitleStyle={styles.scoreSubtitle}
                 valueSuffix=""
               />
             </View>
           </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
+            onPress={() => navigation.getParent()?.navigate('MonitorTab')}
+          >
+            <Text style={styles.primaryButtonText}>Monitorear esta noche</Text>
+          </Pressable>
 
           <View style={styles.actionRow}>
             <Pressable
@@ -315,12 +286,12 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
             <Pressable
               style={({ pressed }) => [styles.ghostButton, pressed ? styles.buttonPressed : null]}
-              onPress={() => navigation.getParent()?.navigate('MonitorTab')}
+              onPress={() => navigation.getParent()?.navigate('HistoryTab')}
             >
-              <Text style={styles.ghostButtonText}>Ir a monitor</Text>
+              <Text style={styles.ghostButtonText}>Ver historial</Text>
             </Pressable>
 
-            {refreshing ? <ActivityIndicator color={palette.mint} size="small" /> : null}
+            {refreshing ? <ActivityIndicator color={palette.primary} size="small" /> : null}
           </View>
 
           {latestSession?.analysis_label ? (
@@ -333,36 +304,47 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
         </GlassCard>
 
         <View style={styles.featuresRow}>
-          <View style={[styles.featureCard, styles.apneaCard, isCompact ? styles.featureCardCompact : null]}>
-            <Text style={styles.featureLabel}>Eventos de apnea</Text>
-            <Text style={[styles.featureValue, styles.apneaValue]}>{apneaCount}</Text>
-            <Text style={styles.featureHint}>Alteraciones respiratorias detectadas en la noche.</Text>
+          <View style={[styles.featureCard, isCompact ? styles.featureCardCompact : null]}>
+            <Text style={styles.featureLabel}>Apneas</Text>
+            <Text style={[styles.featureValue, { color: palette.danger }]}>{apneaCount}</Text>
+            <Text style={styles.featureHint}>Eventos respiratorios de la noche.</Text>
           </View>
 
-          <View style={[styles.featureCard, styles.snoreCard, isCompact ? styles.featureCardCompact : null]}>
-            <Text style={styles.featureLabel}>Eventos de ronquido</Text>
-            <Text style={[styles.featureValue, styles.snoreValue]}>{snoreCount}</Text>
-            <Text style={styles.featureHint}>Conteo de ronquidos de la última noche.</Text>
+          <View style={[styles.featureCard, isCompact ? styles.featureCardCompact : null]}>
+            <Text style={styles.featureLabel}>Ronquidos</Text>
+            <Text style={[styles.featureValue, { color: palette.primary }]}>{snoreCount}</Text>
+            <Text style={styles.featureHint}>Conteo de ronquidos registrado.</Text>
           </View>
         </View>
 
         <GlassCard>
           <View style={styles.sectionHeadRow}>
-            <Text style={styles.sectionTitle}>Continuidad de la noche</Text>
-          <Text style={styles.sectionCaption}>
-            {detections.length > 0 ? 'Última noche registrada' : 'Resumen de la última sesión'}
-          </Text>
+            <Text style={styles.sectionTitle}>Eventos durante la noche</Text>
+            <Text style={styles.sectionCaption}>
+              {detections.length > 0 ? 'Última noche registrada' : 'Resumen de la última sesión'}
+            </Text>
+          </View>
+
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#3271F5' }]} />
+              <Text style={styles.legendText}>Momento de la noche</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: palette.danger }]} />
+              <Text style={styles.legendText}>Apnea / interrupción</Text>
+            </View>
           </View>
 
           <View style={styles.chartWrap}>
-            <View style={[styles.chartCanvas, { width: chartWidth }]}> 
+            <View style={[styles.chartCanvas, { width: chartWidth }]}>
               <LineChart.Provider data={continuityData}>
                 <LineChart width={chartWidth} height={180}>
-                  <LineChart.Path color={palette.mint} width={3} />
-                  <LineChart.Gradient color={palette.mint} />
+                  <LineChart.Path color={palette.primary} width={3} />
+                  <LineChart.Gradient color={palette.primary} />
                   <LineChart.HorizontalLine
                     at={{ value: 80 }}
-                    color="rgba(255,141,141,0.42)"
+                    color="rgba(220,38,38,0.4)"
                     lineProps={{ strokeDasharray: [6, 6] }}
                   />
                 </LineChart>
@@ -371,16 +353,16 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
           </View>
         </GlassCard>
 
-        <GlassCard style={styles.planCard as any}>
-          <Text style={styles.planEyebrow}>Plan sugerido</Text>
-          <Text style={styles.planTitle}>¿Qué puedes hacer hoy para dormir mejor?</Text>
-          {dailyPlan.map((item, index) => (
-            <View key={`${index}-${item}`} style={styles.planRow}>
-              <Text style={styles.planIndex}>{index + 1}</Text>
-              <Text style={styles.planText}>{item}</Text>
-            </View>
-          ))}
-        </GlassCard>
+        {hasData ? (
+          <GlassCard style={styles.planCard as any}>
+            <Text style={styles.planEyebrow}>Recomendación</Text>
+            <Text style={styles.planTitle}>{riskVisual.nextStep}</Text>
+            <Text style={styles.planText}>
+              La apneas moderadas y graves están asociadas a eventos de oxigenación baja durante el sueño. Si el patrón se repite,
+              considera consultar a un especialista del sueño con estos registros en mano.
+            </Text>
+          </GlassCard>
+        ) : null}
 
         <Text style={styles.footerDisclaimer}>{summary?.disclaimer_medico || DEFAULT_DISCLAIMER}</Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -397,8 +379,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   loadingCard: {
-    borderColor: 'rgba(110,247,207,0.32)',
-    backgroundColor: 'rgba(4,14,11,0.82)',
+    borderColor: 'rgba(37,99,235,0.3)',
+    backgroundColor: '#FFFFFF',
   },
   loadingHeaderRow: {
     flexDirection: 'row',
@@ -414,26 +396,26 @@ const styles = StyleSheet.create({
     marginTop: 14,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#E2E8F0',
     width: '100%',
   },
   loadingBarMedium: {
     marginTop: 10,
     height: 14,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#E8EDF5',
     width: '84%',
   },
   loadingBarSmall: {
     marginTop: 10,
     height: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#EEF2F8',
     width: '56%',
   },
   heroCard: {
-    borderColor: 'rgba(110,247,207,0.34)',
-    backgroundColor: 'rgba(9,22,18,0.84)',
+    borderColor: 'rgba(37,99,235,0.25)',
+    backgroundColor: '#FFFFFF',
   },
   heroLayout: {
     flexDirection: 'row',
@@ -448,14 +430,14 @@ const styles = StyleSheet.create({
   heroTextWrap: {
     flex: 1,
     minWidth: 210,
-    maxWidth: '64%',
+    maxWidth: '58%',
   },
   heroTextWrapCompact: {
     minWidth: 0,
     maxWidth: '100%',
   },
   heroEyebrow: {
-    color: palette.mint,
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -481,29 +463,25 @@ const styles = StyleSheet.create({
   heroSubtitleCompact: {
     lineHeight: 19,
   },
-  heroMetaRow: {
+  riskPanel: {
     marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  heroMetaBadge: {
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  heroMetaText: {
+  riskStepLabel: {
     fontFamily: fonts.bodyBold,
-    fontSize: 12,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
   },
-  heroMetaValue: {
-    color: palette.textMuted,
+  riskStepText: {
+    marginTop: 4,
+    color: palette.textPrimary,
     fontFamily: fonts.bodyRegular,
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 19,
   },
   scoreWrap: {
     alignItems: 'center',
@@ -519,9 +497,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 34,
   },
-  scoreValueCompact: {
-    fontSize: 30,
-  },
   scoreTitle: {
     fontFamily: fonts.bodyRegular,
     color: palette.textMuted,
@@ -531,8 +506,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
   },
+  primaryButton: {
+    marginTop: 14,
+    borderRadius: 14,
+    backgroundColor: palette.primary,
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  primaryButtonText: {
+    color: palette.white,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+  },
   actionRow: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -549,10 +536,10 @@ const styles = StyleSheet.create({
   ghostButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: palette.borderSoft,
     paddingHorizontal: 13,
     paddingVertical: 9,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: palette.surface,
   },
   ghostButtonText: {
     color: palette.textPrimary,
@@ -560,7 +547,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   buttonPressed: {
-    opacity: 0.78,
+    opacity: 0.8,
     transform: [{ scale: 0.99 }],
   },
   featuresRow: {
@@ -573,21 +560,14 @@ const styles = StyleSheet.create({
     minWidth: 150,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: palette.borderSoft,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    backgroundColor: palette.panel,
+    backgroundColor: palette.surface,
   },
   featureCardCompact: {
     width: '100%',
     flexBasis: '100%',
-  },
-  apneaCard: {
-    borderColor: 'rgba(255,141,141,0.42)',
-    backgroundColor: 'rgba(255,141,141,0.08)',
-  },
-  snoreCard: {
-    borderColor: 'rgba(110,247,207,0.42)',
-    backgroundColor: 'rgba(110,247,207,0.08)',
   },
   featureLabel: {
     color: palette.textSecondary,
@@ -601,12 +581,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: 36,
     color: palette.textPrimary,
-  },
-  apneaValue: {
-    color: palette.danger,
-  },
-  snoreValue: {
-    color: palette.mint,
   },
   featureHint: {
     marginTop: 4,
@@ -631,23 +605,47 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
   },
+  legendRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 14,
+    flexWrap: 'wrap',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 11,
+  },
   chartWrap: {
     marginTop: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(4,9,8,0.65)',
+    borderColor: palette.borderSoft,
+    backgroundColor: '#F8FAFD',
     paddingHorizontal: 6,
     paddingVertical: 4,
     alignItems: 'center',
     overflow: 'hidden',
   },
+  chartCanvas: {
+    height: 184,
+  },
   planCard: {
-    borderColor: 'rgba(149,178,255,0.34)',
-    backgroundColor: 'rgba(13,18,31,0.82)',
+    borderColor: 'rgba(37,99,235,0.3)',
+    backgroundColor: '#FFFFFF',
   },
   planEyebrow: {
-    color: '#9FB0FF',
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
     textTransform: 'uppercase',
@@ -660,32 +658,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 26,
   },
-  planRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-  },
-  planIndex: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    backgroundColor: 'rgba(159,176,255,0.2)',
-    color: '#C7D1FF',
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    overflow: 'hidden',
-  },
   planText: {
-    flex: 1,
+    marginTop: 8,
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
-  },
-  chartCanvas: {
-    height: 184,
   },
   footerDisclaimer: {
     color: palette.warning,

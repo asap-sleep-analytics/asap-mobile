@@ -40,9 +40,9 @@ const Tab = createBottomTabNavigator();
 
 const sharedStackOptions = {
   headerStyle: {
-    backgroundColor: palette.obsidian,
+    backgroundColor: palette.background,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: palette.borderSoft,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -50,9 +50,10 @@ const sharedStackOptions = {
   headerTitleStyle: {
     fontFamily: fonts.headingMedium,
     letterSpacing: 0.6,
+    color: palette.textPrimary,
   },
   cardStyle: {
-    backgroundColor: palette.obsidian,
+    backgroundColor: palette.background,
   },
 };
 
@@ -70,7 +71,7 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen
         name="DashboardHome"
         component={DashboardHomeScreen}
-        options={{ title: 'Dashboard' }}
+        options={{ title: 'Resumen de riesgo' }}
       />
     </DashboardStack.Navigator>
   );
@@ -82,7 +83,7 @@ function MonitorStackNavigator() {
       <MonitorStack.Screen
         name="MonitorCenter"
         component={MonitorControlScreen}
-        options={{ title: 'Monitor' }}
+        options={{ title: 'Monitoreo nocturno' }}
       />
       <MonitorStack.Screen
         name="MonitorActive"
@@ -92,7 +93,7 @@ function MonitorStackNavigator() {
       <MonitorStack.Screen
         name="MonitorSummary"
         component={MonitorSummaryScreen}
-        options={{ title: 'Resumen de la noche' }}
+        options={{ title: 'Resultado de la noche' }}
       />
       <MonitorStack.Screen
         name="SleepDiary"
@@ -114,7 +115,7 @@ function HistoryStackNavigator() {
       <HistoryStack.Screen
         name="HistoryHome"
         component={HistorySessionsScreen}
-        options={{ title: 'Historial' }}
+        options={{ title: 'Historial de apneas' }}
       />
     </HistoryStack.Navigator>
   );
@@ -143,7 +144,7 @@ function TipsStackNavigator() {
       <TipsStack.Screen
         name="TipsHome"
         component={TipsHomeScreen}
-        options={{ title: 'Consejos' }}
+        options={{ title: 'Prevención' }}
       />
       <TipsStack.Screen
         name="TipsDetail"
@@ -159,32 +160,36 @@ function AppTabsNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => {
         const focusedIcons = {
-          DashboardTab: 'grid',
+          DashboardTab: 'pulse',
           MonitorTab: 'moon',
-          TipsTab: 'sparkles',
           HistoryTab: 'time',
+          TipsTab: 'book',
           ProfileTab: 'person',
         };
 
         const outlineIcons = {
-          DashboardTab: 'grid-outline',
+          DashboardTab: 'pulse-outline',
           MonitorTab: 'moon-outline',
-          TipsTab: 'sparkles-outline',
           HistoryTab: 'time-outline',
+          TipsTab: 'book-outline',
           ProfileTab: 'person-outline',
         };
 
         return {
           headerShown: false,
-          tabBarShowLabel: false,
-          tabBarActiveTintColor: palette.mint,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: palette.primary,
           tabBarInactiveTintColor: palette.textMuted,
+          tabBarLabelStyle: {
+            fontFamily: fonts.bodyBold,
+            fontSize: 11,
+          },
           tabBarStyle: {
-            backgroundColor: palette.obsidian,
+            backgroundColor: palette.surface,
             borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.08)',
+            borderTopColor: palette.borderSoft,
             height: 66,
-            paddingTop: 8,
+            paddingTop: 6,
             paddingBottom: 8,
           },
           tabBarIcon: ({ focused, color, size }) => {
@@ -192,7 +197,7 @@ function AppTabsNavigator() {
               ? focusedIcons[route.name] || 'ellipse'
               : outlineIcons[route.name] || 'ellipse-outline';
 
-            return <Ionicons name={dynamicIconName} color={color} size={Math.max(size, 22)} />;
+            return <Ionicons name={dynamicIconName} color={color} size={Math.max(size, 21)} />;
           },
         };
       }}
@@ -200,22 +205,22 @@ function AppTabsNavigator() {
       <Tab.Screen
         name="DashboardTab"
         component={DashboardStackNavigator}
-        options={{ title: 'Dashboard' }}
+        options={{ title: 'Riesgo' }}
       />
       <Tab.Screen
         name="MonitorTab"
         component={MonitorStackNavigator}
-        options={{ title: 'Monitor' }}
-      />
-      <Tab.Screen
-        name="TipsTab"
-        component={TipsStackNavigator}
-        options={{ title: 'Consejos' }}
+        options={{ title: 'Monitorear' }}
       />
       <Tab.Screen
         name="HistoryTab"
         component={HistoryStackNavigator}
         options={{ title: 'Historial' }}
+      />
+      <Tab.Screen
+        name="TipsTab"
+        component={TipsStackNavigator}
+        options={{ title: 'Prevenir' }}
       />
       <Tab.Screen
         name="ProfileTab"
@@ -232,7 +237,7 @@ function AppNavigationGate() {
   if (authLoading) {
     return (
       <View style={styles.loaderWrap}>
-        <ActivityIndicator color={palette.mint} size="large" />
+        <ActivityIndicator color={palette.primary} size="large" />
         <Text style={styles.loaderText}>Restaurando tu sesión segura...</Text>
       </View>
     );
@@ -288,7 +293,7 @@ export default function App() {
   if (!manropeReady || !spaceReady) {
     return (
       <View style={styles.loaderWrap}>
-        <ActivityIndicator color={palette.mint} size="large" />
+        <ActivityIndicator color={palette.primary} size="large" />
         <Text style={styles.loaderText}>Cargando experiencia A.S.A.P.</Text>
       </View>
     );
@@ -296,7 +301,7 @@ export default function App() {
 
   return (
     <AppProvider>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <AppNavigationGate />
     </AppProvider>
   );
@@ -307,7 +312,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.obsidian,
+    backgroundColor: palette.background,
   },
   loaderText: {
     marginTop: 12,

@@ -40,20 +40,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   primary: {
-    backgroundColor: palette.mint,
+    backgroundColor: palette.primary,
   },
   ghost: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   danger: {
     borderWidth: 1,
-    borderColor: 'rgba(255,141,141,0.5)',
-    backgroundColor: 'rgba(255,141,141,0.1)',
+    borderColor: palette.danger,
+    backgroundColor: palette.dangerSoft,
   },
   primaryLabel: {
-    color: '#03110C',
+    color: palette.white,
   },
   label: {
     color: palette.textPrimary,

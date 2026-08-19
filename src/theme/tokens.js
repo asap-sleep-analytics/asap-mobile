@@ -1,16 +1,33 @@
 export const palette = {
-  obsidian: '#050807',
-  graphite: '#0D1412',
-  mint: '#6EF7CF',
-  mintDeep: '#34D9AE',
-  textPrimary: '#F2FFF9',
-  textSecondary: '#A8BCB5',
-  textMuted: '#7F958D',
-  borderSoft: 'rgba(255,255,255,0.14)',
-  panel: 'rgba(255,255,255,0.04)',
-  panelStrong: 'rgba(255,255,255,0.08)',
-  danger: '#FF8D8D',
-  warning: '#FFDA8A',
+  background: '#F3F6FB',
+  surface: '#FFFFFF',
+  surfaceAlt: '#EFF3F9',
+
+  obsidian: '#F3F6FB',
+  graphite: '#FFFFFF',
+
+  primary: '#2563EB',
+  primaryDeep: '#1E40AF',
+  primarySoft: '#DBEAFE',
+  mint: '#2563EB',
+  mintDeep: '#1E40AF',
+
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+
+  borderSoft: '#E2E8F0',
+  panel: '#FFFFFF',
+  panelStrong: '#F1F5F9',
+
+  success: '#16A34A',
+  successSoft: '#DCFCE7',
+  danger: '#DC2626',
+  dangerSoft: '#FEE2E2',
+  warning: '#D97706',
+  warningSoft: '#FEF3C7',
+
+  white: '#FFFFFF',
 };
 
 export const fonts = {

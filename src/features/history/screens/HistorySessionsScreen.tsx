@@ -13,6 +13,7 @@ import { getApiErrorMessage, listSleepSessions } from '../../../services/api';
 import { fonts, palette } from '../../../theme/tokens';
 import type { SleepSessionRecord } from '../../../types';
 import { formatDateTime, formatDurationMinutes, toIsoDate } from '../../../utils/dates';
+import { riskFromApneaEvents } from '../../../utils/apneaRisk';
 
 function escapeCsv(value: unknown) {
   const text = String(value ?? '');
@@ -28,9 +29,9 @@ function buildCsvReport(sessions: SleepSessionRecord[]) {
     'Inicio',
     'Fin',
     'Duracion',
-    'Sleep Score',
     'Eventos Apnea',
     'Eventos Ronquido',
+    'Sleep Score',
     'Ruido Ambiente dB',
     'Disclaimer',
   ];
@@ -40,9 +41,9 @@ function buildCsvReport(sessions: SleepSessionRecord[]) {
     toIsoDate(session.start_time),
     toIsoDate(session.end_time),
     formatDurationMinutes(session.start_time, session.end_time),
-    session.sleep_score ?? '--',
     session.apnea_events ?? 0,
     session.snore_count ?? 0,
+    session.sleep_score ?? '--',
     session.ambient_noise_level ?? '--',
     'Documento orientativo. No es diagnostico medico.',
   ]);
@@ -55,13 +56,11 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
     .map(
       (session) => `
       <tr>
-        <td>${session.session_id || '--'}</td>
         <td>${toIsoDate(session.start_time)}</td>
-        <td>${toIsoDate(session.end_time)}</td>
         <td>${formatDurationMinutes(session.start_time, session.end_time)}</td>
-        <td>${session.sleep_score ?? '--'}</td>
         <td>${session.apnea_events ?? 0}</td>
         <td>${session.snore_count ?? 0}</td>
+        <td>${session.sleep_score ?? '--'}</td>
       </tr>`,
     )
     .join('');
@@ -86,7 +85,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
       </style>
     </head>
     <body>
-      <h1>A.S.A.P. - Reporte de Sueno</h1>
+      <h1>A.S.A.P. - Reporte de Apneas</h1>
       <p class="muted">Generado: ${new Date().toLocaleString('es-CO')}</p>
 
       <div class="warn">
@@ -95,7 +94,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
 
       <div class="grid">
         <div class="card"><div class="label">Noches</div><div class="value">${metrics.noches}</div></div>
-        <div class="card"><div class="label">Puntaje Promedio</div><div class="value">${metrics.score}</div></div>
+        <div class="card"><div class="label">Promedio Apneas/Noche</div><div class="value">${metrics.promedioApnea}</div></div>
         <div class="card"><div class="label">Total Apnea</div><div class="value">${metrics.apnea}</div></div>
         <div class="card"><div class="label">Total Ronquido</div><div class="value">${metrics.ronquido}</div></div>
       </div>
@@ -104,13 +103,11 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
       <table>
         <thead>
           <tr>
-            <th>Sesion</th>
-            <th>Inicio</th>
-            <th>Fin</th>
+            <th>Fecha</th>
             <th>Duracion</th>
-            <th>Puntaje</th>
             <th>Apnea</th>
             <th>Ronquido</th>
+            <th>Puntaje</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -121,7 +118,7 @@ function buildPdfHtmlReport(sessions: SleepSessionRecord[], metrics: SessionMetr
 
 interface SessionMetrics {
   noches: number;
-  score: string | number;
+  promedioApnea: number | string;
   apnea: number;
   ronquido: number;
 }
@@ -172,24 +169,26 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
     [completedSessions],
   );
 
-  const averageScore = useMemo(() => {
-    const withScore = completedSessions.filter((session) => Number.isFinite(Number(session.sleep_score)));
-    if (withScore.length === 0) {
+  const averageApneaPerNight = useMemo(() => {
+    if (completedSessions.length === 0) {
       return '--';
     }
+    return (totalApnea / completedSessions.length).toFixed(1);
+  }, [completedSessions.length, totalApnea]);
 
-    const total = withScore.reduce((sum, session) => sum + Number(session.sleep_score), 0);
-    return Math.round(total / withScore.length);
+  const latestRisk = useMemo(() => {
+    const latest = completedSessions[0] || null;
+    return latest ? riskFromApneaEvents(latest.apnea_events ?? 0) : null;
   }, [completedSessions]);
 
   const exportMetrics = useMemo(
     () => ({
       noches: completedSessions.length,
-      score: averageScore,
+      promedioApnea: averageApneaPerNight,
       apnea: totalApnea,
       ronquido: totalSnore,
     }),
-    [completedSessions.length, averageScore, totalApnea, totalSnore],
+    [completedSessions.length, averageApneaPerNight, totalApnea, totalSnore],
   );
 
   const handleExportCsv = async () => {
@@ -201,7 +200,7 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
     setExportingFormat('csv');
     try {
       const csvContent = buildCsvReport(completedSessions);
-      const fileUri = `${FileSystem.cacheDirectory}asap_reporte_sueno_${Date.now()}.csv`;
+      const fileUri = `${FileSystem.cacheDirectory}asap_reporte_apneas_${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csvContent, {
         encoding: FileSystem.EncodingType.UTF8,
       });
@@ -252,9 +251,9 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <SectionBadge label="Historial" />
-        <Text style={styles.title}>Tus noches registradas</Text>
-        <Text style={styles.subtitle}>Consulta el detalle de cada sesión monitoreada por A.S.A.P.</Text>
+        <SectionBadge label="Historial de apneas" />
+        <Text style={styles.title}>Tus noches monitoreadas</Text>
+        <Text style={styles.subtitle}>Revisa la evolución de tus eventos de apnea y ronquido noche a noche.</Text>
 
         <GlassCard style={styles.summaryCard}>
           <View style={styles.metricsRow}>
@@ -263,14 +262,24 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
               <Text style={styles.metricValue}>{completedSessions.length}</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Puntaje prom.</Text>
-              <Text style={styles.metricValue}>{averageScore}</Text>
+              <Text style={styles.metricLabel}>Prom. apneas/noche</Text>
+              <Text style={styles.metricValue}>{averageApneaPerNight}</Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Apnea / Ronquido</Text>
               <Text style={styles.metricValue}>{`${totalApnea} / ${totalSnore}`}</Text>
             </View>
           </View>
+
+          {latestRisk ? (
+            <View style={styles.latestRiskRow}>
+              <Text style={styles.latestRiskLabel}>Última noche</Text>
+              <View style={[styles.latestRiskBadge, { backgroundColor: latestRisk.softColor, borderColor: latestRisk.color }]}>
+                <View style={[styles.riskDot, { backgroundColor: latestRisk.color }]} />
+                <Text style={[styles.latestRiskText, { color: latestRisk.color }]}>{latestRisk.label}</Text>
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.actionsRow}>
             <Pressable
@@ -283,21 +292,21 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
               onPress={() => navigation.getParent()?.navigate('MonitorTab')}
               style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.ghostButtonText}>Ir a monitor</Text>
+              <Text style={styles.ghostButtonText}>Ir a monitorear</Text>
             </Pressable>
             <Pressable
               onPress={handleExportPdf}
               style={({ pressed }) => [styles.ghostButtonBlue, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'pdf' ? 'Generando PDF...' : 'Exportar PDF'}</Text>
+              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'pdf' ? 'Generando...' : 'Exportar PDF'}</Text>
             </Pressable>
             <Pressable
               onPress={handleExportCsv}
               style={({ pressed }) => [styles.ghostButtonBlue, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'csv' ? 'Generando CSV...' : 'Exportar CSV'}</Text>
+              <Text style={styles.ghostButtonBlueText}>{exportingFormat === 'csv' ? 'Generando...' : 'Exportar CSV'}</Text>
             </Pressable>
-            {refreshing ? <ActivityIndicator color={palette.mint} /> : null}
+            {refreshing ? <ActivityIndicator color={palette.primary} /> : null}
           </View>
         </GlassCard>
 
@@ -315,23 +324,32 @@ export default function HistorySessionsScreen({ navigation }: { navigation: any 
               <Text style={styles.emptyText}>Aún no hay noches finalizadas para mostrar. Inicia tu primer monitoreo.</Text>
             </GlassCard>
           ) : (
-            completedSessions.map((session) => (
-              <GlassCard key={session.session_id} style={styles.sessionCard}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.sessionDate}>{formatDateTime(session.start_time)}</Text>
-                  <Text style={styles.scoreChip}>{session.sleep_score ?? '--'}</Text>
-                </View>
+            completedSessions.map((session) => {
+              const sessionRisk = riskFromApneaEvents(session.apnea_events ?? 0);
+              return (
+                <GlassCard key={session.session_id} style={styles.sessionCard}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.sessionDate}>{formatDateTime(session.start_time)}</Text>
+                    <Text style={[styles.scoreChip, { color: sessionRisk.color }]}>{session.sleep_score ?? '--'}</Text>
+                  </View>
 
-                <Text style={styles.sessionMeta}>Inicio: {formatDateTime(session.start_time)}</Text>
-                <Text style={styles.sessionMeta}>Fin: {formatDateTime(session.end_time)}</Text>
-                <Text style={styles.sessionMeta}>Duración: {formatDurationMinutes(session.start_time, session.end_time)}</Text>
-
-                <View style={styles.eventsRow}>
-                  <Text style={styles.eventLabel}>Apnea: {session.apnea_events ?? 0}</Text>
-                  <Text style={styles.eventLabel}>Ronquido: {session.snore_count ?? 0}</Text>
-                </View>
-              </GlassCard>
-            ))
+                  <View style={styles.eventsRow}>
+                    <View style={[styles.eventChip, { backgroundColor: sessionRisk.softColor, borderColor: sessionRisk.color }]}>
+                      <Text style={[styles.eventChipValue, { color: sessionRisk.color }]}>{session.apnea_events ?? 0}</Text>
+                      <Text style={styles.eventChipLabel}>apneas</Text>
+                    </View>
+                    <View style={[styles.eventChip, { backgroundColor: palette.panelStrong, borderColor: palette.borderSoft }]}>
+                      <Text style={styles.eventChipValueAlt}>{session.snore_count ?? 0}</Text>
+                      <Text style={styles.eventChipLabel}>ronquidos</Text>
+                    </View>
+                    <View style={[styles.eventChip, { backgroundColor: palette.panelStrong, borderColor: palette.borderSoft }]}>
+                      <Text style={styles.eventChipValueAlt}>{formatDurationMinutes(session.start_time, session.end_time)}</Text>
+                      <Text style={styles.eventChipLabel}>duración</Text>
+                    </View>
+                  </View>
+                </GlassCard>
+              );
+            })
           )}
         </View>
 
@@ -349,20 +367,6 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 12,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(110,247,207,0.36)',
-    backgroundColor: 'rgba(110,247,207,0.09)',
-    color: palette.mint,
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
   title: {
     marginTop: 8,
     color: palette.textPrimary,
@@ -377,8 +381,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   summaryCard: {
-    borderColor: 'rgba(110,247,207,0.3)',
-    backgroundColor: 'rgba(8,18,15,0.82)',
+    borderColor: 'rgba(37,99,235,0.28)',
+    backgroundColor: palette.surface,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -390,8 +394,8 @@ const styles = StyleSheet.create({
     minWidth: 100,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
@@ -408,6 +412,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.headingMedium,
     fontSize: 20,
   },
+  latestRiskRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  latestRiskLabel: {
+    color: palette.textMuted,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  latestRiskBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  riskDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  latestRiskText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+  },
   actionsRow: {
     marginTop: 12,
     flexDirection: 'row',
@@ -418,8 +453,8 @@ const styles = StyleSheet.create({
   ghostButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
@@ -431,13 +466,13 @@ const styles = StyleSheet.create({
   ghostButtonBlue: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(159,176,255,0.44)',
-    backgroundColor: 'rgba(159,176,255,0.14)',
+    borderColor: 'rgba(37,99,235,0.4)',
+    backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
   ghostButtonBlueText: {
-    color: '#D1DBFF',
+    color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 13,
   },
@@ -445,8 +480,8 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   activeCard: {
-    borderColor: 'rgba(255,218,138,0.36)',
-    backgroundColor: 'rgba(255,218,138,0.08)',
+    borderColor: 'rgba(217,119,6,0.4)',
+    backgroundColor: palette.warningSoft,
   },
   activeTitle: {
     color: palette.warning,
@@ -469,27 +504,18 @@ const styles = StyleSheet.create({
   listWrap: {
     gap: 10,
   },
-  loader: {
-    marginTop: 12,
-  },
   emptyText: {
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
   },
   sessionCard: {
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
   },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  sessionId: {
-    color: palette.textPrimary,
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    letterSpacing: 0.6,
   },
   sessionDate: {
     color: palette.textPrimary,
@@ -497,28 +523,40 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   scoreChip: {
-    color: palette.mint,
     fontFamily: fonts.headingMedium,
     fontSize: 20,
   },
-  sessionMeta: {
-    marginTop: 5,
-    color: palette.textSecondary,
-    fontFamily: fonts.bodyRegular,
-    fontSize: 13,
-  },
   eventsRow: {
-    marginTop: 8,
+    marginTop: 10,
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     flexWrap: 'wrap',
   },
-  eventLabel: {
+  eventChip: {
+    flex: 1,
+    minWidth: 96,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  eventChipValue: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+  },
+  eventChipValueAlt: {
+    fontFamily: fonts.heading,
+    fontSize: 20,
+    color: palette.textPrimary,
+  },
+  eventChipLabel: {
+    marginTop: 2,
     color: palette.textMuted,
-    fontFamily: fonts.body,
-    fontSize: 12,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    letterSpacing: 0.5,
   },
   disclaimer: {
     marginTop: 8,
