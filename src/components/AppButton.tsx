@@ -1,9 +1,9 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import React from "react";
+import { Pressable, StyleSheet, Text } from "react-native";
 
-import { fonts, palette } from '../theme/tokens';
+import { fonts, palette } from "../theme/tokens";
 
-type Variant = 'primary' | 'ghost' | 'danger';
+type Variant = "primary" | "ghost" | "danger";
 
 type AppButtonProps = {
   label: string;
@@ -13,7 +13,13 @@ type AppButtonProps = {
   style?: object;
 };
 
-export default function AppButton({ label, onPress, variant = 'primary', disabled, style }: AppButtonProps) {
+export default function AppButton({
+  label,
+  onPress,
+  variant = "primary",
+  disabled,
+  style,
+}: AppButtonProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -26,7 +32,14 @@ export default function AppButton({ label, onPress, variant = 'primary', disable
         style,
       ]}
     >
-      <Text style={[styles.label, variant === 'primary' ? styles.primaryLabel : null]}>{label}</Text>
+      <Text
+        style={[
+          styles.label,
+          variant === "primary" ? styles.primaryLabel : null,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -34,8 +47,8 @@ export default function AppButton({ label, onPress, variant = 'primary', disable
 const styles = StyleSheet.create({
   base: {
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 13,
     paddingHorizontal: 16,
   },

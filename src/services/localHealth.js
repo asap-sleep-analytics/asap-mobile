@@ -1,13 +1,13 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
-const MONITOR_HINTS_KEY = 'asap.monitor.hints.hidden';
-const SLEEP_DIARY_KEY = 'asap.sleep.diary.entries';
-const PROFILE_SURVEY_KEY = 'asap.profile.survey';
-const TIPS_PROGRESS_KEY = 'asap.tips.progress';
-const OXIMETER_DEVICE_KEY = 'asap.oximeter.device';
-const MONITOR_MODE_KEY = 'asap.monitor.mode';
-const APP_INACTIVITY_WINDOWS_KEY = 'asap.app.inactivity.windows';
-const EMERGENCY_ALERT_SETTINGS_KEY = 'asap.emergency.alert.settings';
+const MONITOR_HINTS_KEY = "asap.monitor.hints.hidden";
+const SLEEP_DIARY_KEY = "asap.sleep.diary.entries";
+const PROFILE_SURVEY_KEY = "asap.profile.survey";
+const TIPS_PROGRESS_KEY = "asap.tips.progress";
+const OXIMETER_DEVICE_KEY = "asap.oximeter.device";
+const MONITOR_MODE_KEY = "asap.monitor.mode";
+const APP_INACTIVITY_WINDOWS_KEY = "asap.app.inactivity.windows";
+const EMERGENCY_ALERT_SETTINGS_KEY = "asap.emergency.alert.settings";
 
 async function readJson(key, fallback) {
   try {
@@ -27,11 +27,11 @@ async function writeJson(key, value) {
 
 export async function getMonitorHintsHidden() {
   const value = await SecureStore.getItemAsync(MONITOR_HINTS_KEY);
-  return value === '1';
+  return value === "1";
 }
 
 export async function setMonitorHintsHidden(hidden) {
-  await SecureStore.setItemAsync(MONITOR_HINTS_KEY, hidden ? '1' : '0');
+  await SecureStore.setItemAsync(MONITOR_HINTS_KEY, hidden ? "1" : "0");
 }
 
 export async function listSleepDiaryEntries() {
@@ -62,7 +62,7 @@ export async function saveProfileSurvey(payload) {
 
 export async function getTipsProgress() {
   const value = await readJson(TIPS_PROGRESS_KEY, {});
-  return value && typeof value === 'object' ? value : {};
+  return value && typeof value === "object" ? value : {};
 }
 
 export async function saveTipsProgress(moduleId, checkedItems) {
@@ -93,14 +93,14 @@ export async function clearPreferredOximeterDevice() {
 
 export async function getPreferredMonitorMode() {
   const mode = await SecureStore.getItemAsync(MONITOR_MODE_KEY);
-  if (mode === 'cell_oximeter') {
-    return 'cell_oximeter';
+  if (mode === "cell_oximeter") {
+    return "cell_oximeter";
   }
-  return 'cell_only';
+  return "cell_only";
 }
 
 export async function savePreferredMonitorMode(mode) {
-  const normalized = mode === 'cell_oximeter' ? 'cell_oximeter' : 'cell_only';
+  const normalized = mode === "cell_oximeter" ? "cell_oximeter" : "cell_only";
   await SecureStore.setItemAsync(MONITOR_MODE_KEY, normalized);
   return normalized;
 }
@@ -138,7 +138,10 @@ const DEFAULT_EMERGENCY_SETTINGS = {
 };
 
 export async function getEmergencyAlertSettings() {
-  const settings = await readJson(EMERGENCY_ALERT_SETTINGS_KEY, DEFAULT_EMERGENCY_SETTINGS);
+  const settings = await readJson(
+    EMERGENCY_ALERT_SETTINGS_KEY,
+    DEFAULT_EMERGENCY_SETTINGS,
+  );
   return {
     ...DEFAULT_EMERGENCY_SETTINGS,
     ...(settings || {}),
@@ -178,5 +181,9 @@ const LOCAL_HEALTH_KEYS = [
 ];
 
 export async function clearLocalHealthData() {
-  await Promise.all(LOCAL_HEALTH_KEYS.map((key) => SecureStore.deleteItemAsync(key).catch(() => {})));
+  await Promise.all(
+    LOCAL_HEALTH_KEYS.map((key) =>
+      SecureStore.deleteItemAsync(key).catch(() => {}),
+    ),
+  );
 }

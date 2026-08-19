@@ -1,7 +1,7 @@
-import React from 'react';
-import { StyleSheet, Text } from 'react-native';
+import React from "react";
+import { StyleSheet, Text } from "react-native";
 
-import { fonts, palette } from '../theme/tokens';
+import { fonts, palette } from "../theme/tokens";
 
 type ErrorTextProps = {
   message: string;

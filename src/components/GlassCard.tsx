@@ -1,7 +1,7 @@
-import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import React from "react";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
-import { palette } from '../theme/tokens';
+import { palette } from "../theme/tokens";
 
 type GlassCardProps = {
   children?: React.ReactNode;
@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: palette.surface,
     padding: 16,
-    shadowColor: '#0F172A',
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 12,

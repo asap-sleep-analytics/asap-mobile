@@ -1,9 +1,17 @@
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
 import {
   connectToOximeter,
   disconnectOximeter,
@@ -11,21 +19,22 @@ import {
   isOximeterConnected,
   requestEnableBluetooth,
   scanOximeters,
-} from '../../../services/oximeterBluetooth';
+} from "../../../services/oximeterBluetooth";
 import {
   clearPreferredOximeterDevice,
   getPreferredOximeterDevice,
   savePreferredOximeterDevice,
-} from '../../../services/localHealth';
-import type { ConnectedOximeter, OximeterDevice } from '../../../types';
-import { fonts, palette } from '../../../theme/tokens';
+} from "../../../services/localHealth";
+import type { ConnectedOximeter, OximeterDevice } from "../../../types";
+import { fonts, palette } from "../../../theme/tokens";
 
 export default function OximeterConnectScreen() {
   const [devices, setDevices] = useState<OximeterDevice[]>([]);
   const [loading, setLoading] = useState(false);
-  const [connectingId, setConnectingId] = useState('');
-  const [connectedDevice, setConnectedDevice] = useState<ConnectedOximeter | null>(null);
-  const [error, setError] = useState('');
+  const [connectingId, setConnectingId] = useState("");
+  const [connectedDevice, setConnectedDevice] =
+    useState<ConnectedOximeter | null>(null);
+  const [error, setError] = useState("");
 
   const loadConnectionStatus = useCallback(async () => {
     const preferred = await getPreferredOximeterDevice();
@@ -52,7 +61,7 @@ export default function OximeterConnectScreen() {
 
   const handleScan = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     setDevices([]);
 
     try {
@@ -62,10 +71,15 @@ export default function OximeterConnectScreen() {
       const scanned = await scanOximeters(6500);
       setDevices(scanned);
       if (scanned.length === 0) {
-        setError('No encontramos oxímetros cerca. Activa Bluetooth y acerca el dispositivo.');
+        setError(
+          "No encontramos oxímetros cerca. Activa Bluetooth y acerca el dispositivo.",
+        );
       }
     } catch (err) {
-      setError((err as Error)?.message || 'No fue posible escanear dispositivos Bluetooth.');
+      setError(
+        (err as Error)?.message ||
+          "No fue posible escanear dispositivos Bluetooth.",
+      );
     } finally {
       setLoading(false);
     }
@@ -73,17 +87,17 @@ export default function OximeterConnectScreen() {
 
   const handleConnect = async (device: OximeterDevice) => {
     setConnectingId(device.id);
-    setError('');
+    setError("");
 
     try {
       const connected = await connectToOximeter(device.id);
       await savePreferredOximeterDevice(connected);
       setConnectedDevice(connected);
-      Alert.alert('Conectado', `Oxímetro conectado: ${connected.name}`);
+      Alert.alert("Conectado", `Oxímetro conectado: ${connected.name}`);
     } catch (err) {
-      setError((err as Error)?.message || 'No se pudo conectar el oxímetro.');
+      setError((err as Error)?.message || "No se pudo conectar el oxímetro.");
     } finally {
-      setConnectingId('');
+      setConnectingId("");
     }
   };
 
@@ -93,7 +107,9 @@ export default function OximeterConnectScreen() {
       await clearPreferredOximeterDevice();
       setConnectedDevice(null);
     } catch (err) {
-      setError((err as Error)?.message || 'No fue posible desconectar el oxímetro.');
+      setError(
+        (err as Error)?.message || "No fue posible desconectar el oxímetro.",
+      );
     }
   };
 
@@ -102,23 +118,47 @@ export default function OximeterConnectScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.badge}>Bluetooth</Text>
         <Text style={styles.title}>Conectar oxímetro</Text>
-        <Text style={styles.subtitle}>Vincula tu oxímetro para usar monitoreo Celular + Oxímetro.</Text>
+        <Text style={styles.subtitle}>
+          Vincula tu oxímetro para usar monitoreo Celular + Oxímetro.
+        </Text>
 
         <GlassCard style={styles.stateCard}>
           <Text style={styles.stateLabel}>Estado actual</Text>
-          <Text style={styles.stateValue}>{connectedDevice ? 'Conectado' : 'Sin conexión'}</Text>
-          <Text style={styles.stateHint}>{connectedDevice ? connectedDevice.name : 'Ningún oxímetro enlazado'}</Text>
+          <Text style={styles.stateValue}>
+            {connectedDevice ? "Conectado" : "Sin conexión"}
+          </Text>
+          <Text style={styles.stateHint}>
+            {connectedDevice
+              ? connectedDevice.name
+              : "Ningún oxímetro enlazado"}
+          </Text>
 
           <View style={styles.rowActions}>
-            <Pressable onPress={handleScan} style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null]}>
-              <Text style={styles.primaryButtonText}>{loading ? 'Buscando...' : 'Buscar dispositivos'}</Text>
+            <Pressable
+              onPress={handleScan}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {loading ? "Buscando..." : "Buscar dispositivos"}
+              </Text>
             </Pressable>
-            <Pressable onPress={handleDisconnect} style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}>
+            <Pressable
+              onPress={handleDisconnect}
+              style={({ pressed }) => [
+                styles.ghostButton,
+                pressed ? styles.pressed : null,
+              ]}
+            >
               <Text style={styles.ghostButtonText}>Desconectar</Text>
             </Pressable>
           </View>
 
-          {loading ? <ActivityIndicator color={palette.primary} style={styles.loader} /> : null}
+          {loading ? (
+            <ActivityIndicator color={palette.primary} style={styles.loader} />
+          ) : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </GlassCard>
 
@@ -131,17 +171,30 @@ export default function OximeterConnectScreen() {
               <View style={styles.deviceHead}>
                 <View>
                   <Text style={styles.deviceName}>{device.name}</Text>
-                  <Text style={styles.deviceMeta}>Señal: {typeof device.rssi === 'number' ? `${device.rssi} dBm` : '--'}</Text>
+                  <Text style={styles.deviceMeta}>
+                    Señal:{" "}
+                    {typeof device.rssi === "number"
+                      ? `${device.rssi} dBm`
+                      : "--"}
+                  </Text>
                 </View>
-                <Text style={styles.deviceMeta}>{active ? 'Conectado' : 'Disponible'}</Text>
+                <Text style={styles.deviceMeta}>
+                  {active ? "Conectado" : "Disponible"}
+                </Text>
               </View>
 
               <Pressable
                 onPress={() => handleConnect(device)}
                 disabled={connecting || active}
-                style={({ pressed }) => [styles.connectButton, pressed ? styles.pressed : null, (connecting || active) ? styles.disabled : null]}
+                style={({ pressed }) => [
+                  styles.connectButton,
+                  pressed ? styles.pressed : null,
+                  connecting || active ? styles.disabled : null,
+                ]}
               >
-                <Text style={styles.connectButtonText}>{active ? 'Listo' : connecting ? 'Conectando...' : 'Conectar'}</Text>
+                <Text style={styles.connectButtonText}>
+                  {active ? "Listo" : connecting ? "Conectando..." : "Conectar"}
+                </Text>
               </Pressable>
             </GlassCard>
           );
@@ -159,15 +212,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.35)',
+    borderColor: "rgba(37,99,235,0.35)",
     backgroundColor: palette.primarySoft,
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -193,7 +246,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   stateValue: {
@@ -209,14 +262,14 @@ const styles = StyleSheet.create({
   },
   rowActions: {
     marginTop: 12,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   primaryButton: {
     flex: 1,
     borderRadius: 12,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   primaryButtonText: {
@@ -229,7 +282,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   ghostButtonText: {
@@ -249,9 +302,9 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   deviceHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   deviceName: {
     color: palette.textPrimary,
@@ -267,9 +320,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.5)',
+    borderColor: "rgba(37,99,235,0.5)",
     backgroundColor: palette.primarySoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 9,
   },
   connectButtonText: {

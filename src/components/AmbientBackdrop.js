@@ -1,7 +1,7 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React from "react";
+import { StyleSheet, View } from "react-native";
 
-import { palette } from '../theme/tokens';
+import { palette } from "../theme/tokens";
 
 export default function AmbientBackdrop({ children }) {
   return (
@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
   },
   glow: {
-    position: 'absolute',
+    position: "absolute",
     borderRadius: 999,
     backgroundColor: palette.primary,
     opacity: 0.05,

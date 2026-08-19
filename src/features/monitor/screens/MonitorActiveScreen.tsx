@@ -1,19 +1,43 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AudioQuality, IOSOutputFormat, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import * as Brightness from 'expo-brightness';
-import * as FileSystem from 'expo-file-system/legacy';
-import { useKeepAwake } from 'expo-keep-awake';
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  AudioQuality,
+  IOSOutputFormat,
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import * as Brightness from "expo-brightness";
+import * as FileSystem from "expo-file-system/legacy";
+import { useKeepAwake } from "expo-keep-awake";
 
-import { AppContext } from '../../../context/AppContext';
-import { finishSleepSession, uploadSleepFragment, predictApneaFromFile } from '../../../services/api';
-import { triggerSevereApneaAlert } from '../../../services/emergencyAlerts';
-import { getEmergencyAlertSettings } from '../../../services/localHealth';
-import { getLatestOximeterReading, startOximeterReading, stopOximeterReading } from '../../../services/oximeterBluetooth';
-import { fonts, palette } from '../../../theme/tokens';
-import type { OximeterReading } from '../../../types';
-import ApneaResultCard from '../../../components/ApneaResultCard';
-import { riskFromPredictionNivel } from '../../../utils/apneaRisk';
+import { AppContext } from "../../../context/AppContext";
+import {
+  finishSleepSession,
+  uploadSleepFragment,
+  predictApneaFromFile,
+} from "../../../services/api";
+import { triggerSevereApneaAlert } from "../../../services/emergencyAlerts";
+import { getEmergencyAlertSettings } from "../../../services/localHealth";
+import {
+  getLatestOximeterReading,
+  startOximeterReading,
+  stopOximeterReading,
+} from "../../../services/oximeterBluetooth";
+import { fonts, palette } from "../../../theme/tokens";
+import type { OximeterReading } from "../../../types";
+import ApneaResultCard from "../../../components/ApneaResultCard";
+import { riskFromPredictionNivel } from "../../../utils/apneaRisk";
 
 interface RouteParams {
   sessionId?: string;
@@ -26,7 +50,10 @@ interface Props {
   navigation: {
     replace: (screen: string, params?: Record<string, unknown>) => void;
     goBack: () => void;
-    addListener: (event: string, callback: (event: { preventDefault: () => void }) => void) => () => void;
+    addListener: (
+      event: string,
+      callback: (event: { preventDefault: () => void }) => void,
+    ) => () => void;
   };
 }
 
@@ -55,13 +82,13 @@ const WAVE_BARS = 28;
 
 const RECORDING_OPTIONS = {
   isMeteringEnabled: true,
-  extension: '.m4a',
+  extension: ".m4a",
   sampleRate: 16000,
   numberOfChannels: 1,
   bitRate: 128000,
   android: {
-    outputFormat: 'mpeg4',
-    audioEncoder: 'aac',
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
   },
   ios: {
     outputFormat: IOSOutputFormat.MPEG4AAC,
@@ -71,7 +98,7 @@ const RECORDING_OPTIONS = {
     linearPCMIsFloat: false,
   },
   web: {
-    mimeType: 'audio/webm',
+    mimeType: "audio/webm",
     bitsPerSecond: 128000,
   },
 } as const;
@@ -93,30 +120,34 @@ function formatElapsed(seconds: number): string {
   const secs = seconds % 60;
 
   if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
-  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 export default function MonitorActiveScreen({ route, navigation }: Props) {
   useKeepAwake();
 
   const { setActiveSleepSessionId } = useContext(AppContext);
-  const sessionId = route?.params?.sessionId || '';
+  const sessionId = route?.params?.sessionId || "";
   const ambientNoiseLevel = route?.params?.ambientNoiseLevel;
-  const monitoringMode = route?.params?.monitoringMode || 'cell_only';
+  const monitoringMode = route?.params?.monitoringMode || "cell_only";
 
   const [isPreparing, setIsPreparing] = useState(true);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
+    null,
+  );
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [uploadedFragments, setUploadedFragments] = useState(0);
   const [capturedFragments, setCapturedFragments] = useState(0);
   const [pendingUploads, setPendingUploads] = useState(0);
   const [silentErrors, setSilentErrors] = useState(0);
-  const [statusText, setStatusText] = useState('Preparando monitoreo...');
-  const [wavePoints, setWavePoints] = useState(Array.from({ length: WAVE_BARS }, () => 0.08));
+  const [statusText, setStatusText] = useState("Preparando monitoreo...");
+  const [wavePoints, setWavePoints] = useState(
+    Array.from({ length: WAVE_BARS }, () => 0.08),
+  );
 
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [spo2Values, setSpo2Values] = useState<number[]>([]);
@@ -128,7 +159,10 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   const handleOximeterReading = (reading: OximeterReading) => {
     if (reading.spo2 !== null) {
       setLiveSpo2(reading.spo2);
-      spo2SamplesRef.current = [...spo2SamplesRef.current.slice(-11), reading.spo2];
+      spo2SamplesRef.current = [
+        ...spo2SamplesRef.current.slice(-11),
+        reading.spo2,
+      ];
     }
     if (reading.pulse !== null) {
       setLivePulse(reading.pulse);
@@ -175,7 +209,9 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     }
 
     severeAlertTriggeredRef.current = true;
-    setStatusText('Alerta: patrón severo detectado. Activando protocolo de seguridad...');
+    setStatusText(
+      "Alerta: patrón severo detectado. Activando protocolo de seguridad...",
+    );
 
     await triggerSevereApneaAlert(settings, {
       sessionId,
@@ -184,10 +220,19 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     });
   };
 
-  const elapsedLabel = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
+  const elapsedLabel = useMemo(
+    () => formatElapsed(elapsedSeconds),
+    [elapsedSeconds],
+  );
 
-  const latestPrediction = useMemo(() => predictions[predictions.length - 1] || null, [predictions]);
-  const riskVisual = useMemo(() => riskFromPredictionNivel(latestPrediction?.nivel), [latestPrediction]);
+  const latestPrediction = useMemo(
+    () => predictions[predictions.length - 1] || null,
+    [predictions],
+  );
+  const riskVisual = useMemo(
+    () => riskFromPredictionNivel(latestPrediction?.nivel),
+    [latestPrediction],
+  );
 
   const clearFragmentTimer = () => {
     if (fragmentTimerRef.current) {
@@ -226,7 +271,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       brightnessBeforeRef.current = current;
 
       const permission = await Brightness.requestPermissionsAsync();
-      if (permission.status === 'granted') {
+      if (permission.status === "granted") {
         await Brightness.setBrightnessAsync(0.02);
       }
     } catch {
@@ -367,15 +412,18 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         const result = await predictApneaFromFile({
           fileUri: uri,
           spo2: realSpo2.length > 0 ? realSpo2 : undefined,
-          modo: 'screening',
-          perfil: 'general',
+          modo: "screening",
+          perfil: "general",
         });
 
         if (mountedRef.current && result) {
           setPredictions((prev) => [...prev.slice(-4), result]);
-          setStatusText('Análisis actualizado con tu último fragmento.');
+          setStatusText("Análisis actualizado con tu último fragmento.");
 
-          if (result.nivel === 'CRITICO' && emergencySettingsRef.current?.enabled) {
+          if (
+            result.nivel === "CRITICO" &&
+            emergencySettingsRef.current?.enabled
+          ) {
             try {
               await triggerSevereApneaAlert(emergencySettingsRef.current, {
                 sessionId,
@@ -410,7 +458,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       clearMeteringTimer();
       meteringTimerRef.current = setInterval(() => {
         const status = recorder.getStatus();
-        if (status?.isRecording && typeof status.metering === 'number') {
+        if (status?.isRecording && typeof status.metering === "number") {
           updateWaveFromMetering(status.metering);
         }
       }, 250);
@@ -426,7 +474,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       if (!mountedRef.current) {
         return;
       }
-      setStatusText('No fue posible iniciar la grabación.');
+      setStatusText("No fue posible iniciar la grabación.");
       setIsMonitoring(false);
       monitoringRef.current = false;
     }
@@ -444,7 +492,9 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
   const bootstrapMonitoring = async () => {
     if (!sessionId) {
-      setStatusText('No se encontró una sesión válida para iniciar el monitoreo.');
+      setStatusText(
+        "No se encontró una sesión válida para iniciar el monitoreo.",
+      );
       setPermissionGranted(false);
       setIsPreparing(false);
       return;
@@ -457,7 +507,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       setPermissionGranted(granted);
 
       if (!granted) {
-        setStatusText('Permiso de micrófono requerido para iniciar monitoreo.');
+        setStatusText("Permiso de micrófono requerido para iniciar monitoreo.");
         setIsPreparing(false);
         return;
       }
@@ -470,25 +520,27 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
       await applyLowBrightness();
 
-      if (monitoringMode === 'cell_oximeter') {
+      if (monitoringMode === "cell_oximeter") {
         try {
           await startOximeterReading(handleOximeterReading);
-          setStatusText('Oxímetro vinculado. Registrando SpO2 real.');
+          setStatusText("Oxímetro vinculado. Registrando SpO2 real.");
         } catch {
-          setStatusText('No se pudo leer el oxímetro. La sesión continuará solo con audio.');
+          setStatusText(
+            "No se pudo leer el oxímetro. La sesión continuará solo con audio.",
+          );
         }
       }
 
       monitoringRef.current = true;
       setIsMonitoring(true);
       setIsPreparing(false);
-      if (monitoringMode !== 'cell_oximeter') {
-        setStatusText('Monitoreo activo. Fragmentando cada 30 segundos.');
+      if (monitoringMode !== "cell_oximeter") {
+        setStatusText("Monitoreo activo. Fragmentando cada 30 segundos.");
       }
       startElapsedTicker();
       await startNextFragment();
     } catch (error) {
-      setStatusText('No fue posible inicializar el monitoreo.');
+      setStatusText("No fue posible inicializar el monitoreo.");
       setIsPreparing(false);
       setIsMonitoring(false);
     }
@@ -502,7 +554,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
     monitoringRef.current = false;
     setIsMonitoring(false);
-    setStatusText('Finalizando monitoreo...');
+    setStatusText("Finalizando monitoreo...");
 
     clearFragmentTimer();
     clearElapsedTimer();
@@ -518,7 +570,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       : undefined;
 
     const finalAmbientNoise =
-      typeof ambientNoiseLevel === 'number'
+      typeof ambientNoiseLevel === "number"
         ? ambientNoiseLevel
         : computedAmbient;
 
@@ -529,12 +581,12 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         ambient_noise_level: finalAmbientNoise,
       });
       allowLeaveRef.current = true;
-      setActiveSleepSessionId('');
-      navigation.replace('MonitorSummary', { session: finished || null });
+      setActiveSleepSessionId("");
+      navigation.replace("MonitorSummary", { session: finished || null });
     } catch {
       allowLeaveRef.current = true;
-      setActiveSleepSessionId('');
-      navigation.replace('MonitorSummary', {
+      setActiveSleepSessionId("");
+      navigation.replace("MonitorSummary", {
         session: {
           session_id: sessionId,
           start_time: new Date().toISOString(),
@@ -561,13 +613,19 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
     monitoringRef.current = false;
     setIsMonitoring(false);
     setShowExitModal(false);
-    setStatusText('Saliste del monitoreo. La sesión quedó abierta y puedes continuarla desde Monitorear.');
+    setStatusText(
+      "Saliste del monitoreo. La sesión quedó abierta y puedes continuarla desde Monitorear.",
+    );
     navigation.goBack();
   };
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (allowLeaveRef.current || !monitoringRef.current || !mountedRef.current) {
+    const unsubscribe = navigation.addListener("beforeRemove", (event) => {
+      if (
+        allowLeaveRef.current ||
+        !monitoringRef.current ||
+        !mountedRef.current
+      ) {
         return;
       }
       event.preventDefault();
@@ -622,11 +680,23 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         <Text style={styles.timer}>{elapsedLabel}</Text>
       </View>
 
-      <View style={[styles.riskCard, { backgroundColor: riskVisual.softColor, borderColor: riskVisual.color }]}>
-        <Text style={[styles.riskLabel, { color: riskVisual.color }]}>Riesgo de apnea en vivo</Text>
+      <View
+        style={[
+          styles.riskCard,
+          {
+            backgroundColor: riskVisual.softColor,
+            borderColor: riskVisual.color,
+          },
+        ]}
+      >
+        <Text style={[styles.riskLabel, { color: riskVisual.color }]}>
+          Riesgo de apnea en vivo
+        </Text>
         <View style={styles.riskRow}>
           <View style={styles.riskTextWrap}>
-            <Text style={[styles.riskTitle, { color: riskVisual.color }]}>{riskVisual.label}</Text>
+            <Text style={[styles.riskTitle, { color: riskVisual.color }]}>
+              {riskVisual.label}
+            </Text>
             <Text style={styles.riskSubtitle}>{riskVisual.interpretation}</Text>
           </View>
           {latestPrediction ? (
@@ -641,7 +711,9 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       </View>
 
       <Text style={styles.modeText}>
-        {monitoringMode === 'cell_oximeter' ? 'Modo: Celular + oxímetro' : 'Modo: Solo celular'}
+        {monitoringMode === "cell_oximeter"
+          ? "Modo: Celular + oxímetro"
+          : "Modo: Solo celular"}
       </Text>
 
       {predictions.length > 0 ? (
@@ -651,12 +723,18 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
             <Text style={styles.metricValue}>{predictions.length}</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>{liveSpo2 !== null ? 'SpO2 en vivo' : 'SpO2'}</Text>
+            <Text style={styles.metricLabel}>
+              {liveSpo2 !== null ? "SpO2 en vivo" : "SpO2"}
+            </Text>
             <Text style={styles.metricValue}>
-              {liveSpo2 !== null ? `${liveSpo2}%` : spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : '--'}
+              {liveSpo2 !== null
+                ? `${liveSpo2}%`
+                : spo2Values.length > 0
+                  ? `${spo2Values[spo2Values.length - 1]}%`
+                  : "--"}
             </Text>
           </View>
-          {monitoringMode === 'cell_oximeter' && livePulse !== null ? (
+          {monitoringMode === "cell_oximeter" && livePulse !== null ? (
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Pulso</Text>
               <Text style={styles.metricValue}>{livePulse} bpm</Text>
@@ -664,8 +742,16 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
           ) : null}
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Estado</Text>
-            <Text style={[styles.metricValue, { color: isMonitoring ? palette.success : palette.danger, fontSize: 16 }]}>
-              {isMonitoring ? 'Activo' : 'Detenido'}
+            <Text
+              style={[
+                styles.metricValue,
+                {
+                  color: isMonitoring ? palette.success : palette.danger,
+                  fontSize: 16,
+                },
+              ]}
+            >
+              {isMonitoring ? "Activo" : "Detenido"}
             </Text>
           </View>
         </View>
@@ -676,20 +762,28 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       <View style={styles.waveWrap}>
         {wavePoints.map((point, index) => {
           const barHeight = Math.max(8, Math.round(point * 96));
-          return <View key={`wave-${index}`} style={[styles.waveBar, { height: barHeight }]} />;
+          return (
+            <View
+              key={`wave-${index}`}
+              style={[styles.waveBar, { height: barHeight }]}
+            />
+          );
         })}
       </View>
 
       {silentErrors > 0 ? (
         <Text style={styles.microText}>
-          Algunos fragmentos no pudieron subirse ahora; se reintentará al finalizar.
+          Algunos fragmentos no pudieron subirse ahora; se reintentará al
+          finalizar.
         </Text>
       ) : null}
 
       {isPreparing ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={palette.primary} />
-          <Text style={styles.loadingText}>Solicitando permisos de audio...</Text>
+          <Text style={styles.loadingText}>
+            Solicitando permisos de audio...
+          </Text>
         </View>
       ) : null}
 
@@ -709,26 +803,37 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       )}
 
       {!permissionGranted ? (
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.goBack()}>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.secondaryButtonText}>Volver</Text>
         </Pressable>
       ) : (
         <>
           <Pressable
-            style={[styles.stopButton, !isMonitoring ? styles.stopButtonDisabled : null]}
+            style={[
+              styles.stopButton,
+              !isMonitoring ? styles.stopButtonDisabled : null,
+            ]}
             onPress={() => setShowExitModal(true)}
             disabled={!isMonitoring}
           >
             <Text style={styles.stopButtonText}>Terminar monitoreo</Text>
           </Pressable>
           <Text style={styles.exitNote}>
-            Si cierras la app por completo, la grabación se detiene. La sesión queda abierta y podrás continuarla desde
-            la pestaña Monitorear.
+            Si cierras la app por completo, la grabación se detiene. La sesión
+            queda abierta y podrás continuarla desde la pestaña Monitorear.
           </Text>
         </>
       )}
 
-      <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
+      <Modal
+        visible={showExitModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExitModal(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Terminar la sesión</Text>
@@ -742,28 +847,40 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
                   setShowExitModal(false);
                   finishMonitoring();
                 }}
-                style={({ pressed }) => [styles.modalPrimary, pressed ? styles.pressed : null]}
+                style={({ pressed }) => [
+                  styles.modalPrimary,
+                  pressed ? styles.pressed : null,
+                ]}
               >
                 <Text style={styles.modalPrimaryText}>Finalizar y guardar</Text>
               </Pressable>
 
               <Pressable
                 onPress={leaveWithoutSaving}
-                style={({ pressed }) => [styles.modalGhost, pressed ? styles.pressed : null]}
+                style={({ pressed }) => [
+                  styles.modalGhost,
+                  pressed ? styles.pressed : null,
+                ]}
               >
                 <Text style={styles.modalGhostText}>Salir sin guardar</Text>
               </Pressable>
 
               <Pressable
                 onPress={() => setShowExitModal(false)}
-                style={({ pressed }) => [styles.modalCancel, pressed ? styles.pressed : null]}
+                style={({ pressed }) => [
+                  styles.modalCancel,
+                  pressed ? styles.pressed : null,
+                ]}
               >
-                <Text style={styles.modalCancelText}>Continuar monitoreando</Text>
+                <Text style={styles.modalCancelText}>
+                  Continuar monitoreando
+                </Text>
               </Pressable>
             </View>
 
             <Text style={styles.modalNote}>
-              Si saldrás sin guardar, la sesión queda abierta en tu cuenta y podrás continuarla después.
+              Si saldrás sin guardar, la sesión queda abierta en tu cuenta y
+              podrás continuarla después.
             </Text>
           </View>
         </View>
@@ -781,15 +898,15 @@ const styles = StyleSheet.create({
     paddingBottom: 26,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   badge: {
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1.1,
   },
   timer: {
@@ -807,14 +924,14 @@ const styles = StyleSheet.create({
   riskLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   riskRow: {
     marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 10,
   },
   riskTextWrap: {
@@ -837,7 +954,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   probValue: {
     fontFamily: fonts.heading,
@@ -856,7 +973,7 @@ const styles = StyleSheet.create({
   },
   spo2Row: {
     marginTop: 14,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   metricCard: {
@@ -872,7 +989,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyRegular,
     fontSize: 10,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   metricValue: {
@@ -893,12 +1010,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    backgroundColor: '#F8FAFD',
+    backgroundColor: "#F8FAFD",
     paddingHorizontal: 10,
     paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
   },
   waveBar: {
     width: 7,
@@ -914,8 +1031,8 @@ const styles = StyleSheet.create({
   },
   loadingWrap: {
     marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   loadingText: {
@@ -936,7 +1053,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     borderRadius: 14,
     backgroundColor: palette.danger,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 14,
   },
   stopButtonDisabled: {
@@ -953,7 +1070,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 14,
   },
   secondaryButtonText: {
@@ -966,17 +1083,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
     lineHeight: 17,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(15,23,42,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   modalCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     borderRadius: 20,
     borderWidth: 1,
@@ -1002,7 +1119,7 @@ const styles = StyleSheet.create({
   modalPrimary: {
     borderRadius: 12,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 13,
   },
   modalPrimaryText: {
@@ -1015,7 +1132,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.danger,
     backgroundColor: palette.dangerSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 13,
   },
   modalGhostText: {
@@ -1028,7 +1145,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 13,
   },
   modalCancelText: {
@@ -1042,7 +1159,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
     lineHeight: 17,
-    textAlign: 'center',
+    textAlign: "center",
   },
   pressed: {
     opacity: 0.75,

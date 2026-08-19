@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { fonts, palette } from '../theme/tokens';
-import { riskFromPredictionNivel } from '../utils/apneaRisk';
+import { fonts, palette } from "../theme/tokens";
+import { riskFromPredictionNivel } from "../utils/apneaRisk";
 
 interface ApneaResultCardProps {
   result: {
@@ -31,11 +31,15 @@ export default function ApneaResultCard({ result }: ApneaResultCardProps) {
       ]}
     >
       <View style={componentStyles.header}>
-        <View style={[componentStyles.badge, { backgroundColor: visual.color }]}>
+        <View
+          style={[componentStyles.badge, { backgroundColor: visual.color }]}
+        >
           <Text style={componentStyles.levelText}>{visual.label}</Text>
         </View>
         <View style={componentStyles.probWrap}>
-          <Text style={[componentStyles.probability, { color: visual.color }]}>{prob}%</Text>
+          <Text style={[componentStyles.probability, { color: visual.color }]}>
+            {prob}%
+          </Text>
           <Text style={componentStyles.probLabel}>certeza del modelo</Text>
         </View>
       </View>
@@ -54,9 +58,9 @@ const componentStyles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   badge: {
@@ -70,7 +74,7 @@ const componentStyles = StyleSheet.create({
     fontSize: 13,
   },
   probWrap: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   probability: {
     fontFamily: fonts.heading,

@@ -1,16 +1,24 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { fonts, palette } from '../theme/tokens';
+import { fonts, palette } from "../theme/tokens";
 
 type SectionBadgeProps = {
   label: string;
   color?: string;
 };
 
-export default function SectionBadge({ label, color = palette.primary }: SectionBadgeProps) {
+export default function SectionBadge({
+  label,
+  color = palette.primary,
+}: SectionBadgeProps) {
   return (
-    <View style={[styles.badge, { borderColor: `${color}5C`, backgroundColor: `${color}17` }]}>
+    <View
+      style={[
+        styles.badge,
+        { borderColor: `${color}5C`, backgroundColor: `${color}17` },
+      ]}
+    >
       <Text style={[styles.text, { color }]}>{label}</Text>
     </View>
   );
@@ -18,7 +26,7 @@ export default function SectionBadge({ label, color = palette.primary }: Section
 
 const styles = StyleSheet.create({
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 10,
@@ -27,7 +35,7 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
 });

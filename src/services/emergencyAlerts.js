@@ -1,18 +1,24 @@
-import Constants from 'expo-constants';
-import { Alert, Linking, Vibration } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Constants from "expo-constants";
+import { Alert, Linking, Vibration } from "react-native";
+import * as Notifications from "expo-notifications";
 
 function normalizePhone(phone) {
-  return String(phone || '').replace(/[^\d+]/g, '');
+  return String(phone || "").replace(/[^\d+]/g, "");
 }
 
 function buildEmergencyMessage(payload) {
-  const modeLabel = payload?.monitoringMode === 'cell_oximeter' ? 'Celular + oxímetro' : 'Solo celular';
-  return `ALERTA A.S.A.P.: posible apnea severa detectada. Sesión ${payload?.sessionId || '--'}. Eventos estimados: ${payload?.estimatedEvents || '--'}. Modo: ${modeLabel}. Hora: ${new Date().toLocaleString('es-CO')}.`;
+  const modeLabel =
+    payload?.monitoringMode === "cell_oximeter"
+      ? "Celular + oxímetro"
+      : "Solo celular";
+  return `ALERTA A.S.A.P.: posible apnea severa detectada. Sesión ${payload?.sessionId || "--"}. Eventos estimados: ${payload?.estimatedEvents || "--"}. Modo: ${modeLabel}. Hora: ${new Date().toLocaleString("es-CO")}.`;
 }
 
 function isExpoGoEnvironment() {
-  return Constants?.appOwnership === 'expo' || Constants?.executionEnvironment === 'storeClient';
+  return (
+    Constants?.appOwnership === "expo" ||
+    Constants?.executionEnvironment === "storeClient"
+  );
 }
 
 async function sendLocalNotification(message) {
@@ -21,15 +27,15 @@ async function sendLocalNotification(message) {
   }
 
   const permissions = await Notifications.requestPermissionsAsync();
-  if (permissions.status !== 'granted') {
+  if (permissions.status !== "granted") {
     return false;
   }
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Alerta de apnea severa',
+      title: "Alerta de apnea severa",
       body: message,
-      sound: 'default',
+      sound: "default",
       priority: Notifications.AndroidNotificationPriority.MAX,
     },
     trigger: null,
@@ -47,7 +53,7 @@ async function dispatchLinks(settings, message) {
   const results = [];
   for (const contact of contacts) {
     const phone = normalizePhone(contact?.phone);
-    const email = String(contact?.email || '').trim();
+    const email = String(contact?.email || "").trim();
     let notified = false;
 
     if (settings?.methods?.whatsapp && phone) {
@@ -64,7 +70,9 @@ async function dispatchLinks(settings, message) {
 
     if (!notified && settings?.methods?.sms && phone) {
       try {
-        await Linking.openURL(`sms:${phone}?body=${encodeURIComponent(message)}`);
+        await Linking.openURL(
+          `sms:${phone}?body=${encodeURIComponent(message)}`,
+        );
         notified = true;
       } catch {
         notified = false;
@@ -73,7 +81,9 @@ async function dispatchLinks(settings, message) {
 
     if (!notified && settings?.methods?.email && email) {
       try {
-        await Linking.openURL(`mailto:${email}?subject=${encodeURIComponent('Alerta A.S.A.P.')}&body=${encodeURIComponent(message)}`);
+        await Linking.openURL(
+          `mailto:${email}?subject=${encodeURIComponent("Alerta A.S.A.P.")}&body=${encodeURIComponent(message)}`,
+        );
         notified = true;
       } catch {
         notified = false;
@@ -88,7 +98,7 @@ async function dispatchLinks(settings, message) {
 
 export async function triggerSevereApneaAlert(settings, payload) {
   if (!settings?.enabled) {
-    return { triggered: false, reason: 'disabled' };
+    return { triggered: false, reason: "disabled" };
   }
 
   const message = buildEmergencyMessage(payload);
@@ -101,8 +111,8 @@ export async function triggerSevereApneaAlert(settings, payload) {
     const sent = await sendLocalNotification(message);
     if (!sent && isExpoGoEnvironment()) {
       Alert.alert(
-        'Notificaciones limitadas',
-        'Expo Go no permite probar notificaciones de emergencia completas. Usa una Development Build para verificar esta función.',
+        "Notificaciones limitadas",
+        "Expo Go no permite probar notificaciones de emergencia completas. Usa una Development Build para verificar esta función.",
       );
     }
   }
@@ -110,14 +120,14 @@ export async function triggerSevereApneaAlert(settings, payload) {
   if (settings?.auto_dispatch) {
     await dispatchLinks(settings, message);
   } else {
-    Alert.alert('Alerta de apnea severa', message, [
+    Alert.alert("Alerta de apnea severa", message, [
       {
-        text: 'Enviar alerta',
+        text: "Enviar alerta",
         onPress: () => {
           dispatchLinks(settings, message).catch(() => null);
         },
       },
-      { text: 'Cerrar', style: 'cancel' },
+      { text: "Cerrar", style: "cancel" },
     ]);
   }
 

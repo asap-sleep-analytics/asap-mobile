@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -7,25 +7,29 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from "react-native";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
-import { AppContext } from '../../../context/AppContext';
-import { deleteMyAccount } from '../../../services/api';
-import { clearLocalHealthData, getProfileSurvey, saveProfileSurvey } from '../../../services/localHealth';
-import { fonts, palette } from '../../../theme/tokens';
-import type { ProfileSurveyData } from '../../../types';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
+import { AppContext } from "../../../context/AppContext";
+import { deleteMyAccount } from "../../../services/api";
+import {
+  clearLocalHealthData,
+  getProfileSurvey,
+  saveProfileSurvey,
+} from "../../../services/localHealth";
+import { fonts, palette } from "../../../theme/tokens";
+import type { ProfileSurveyData } from "../../../types";
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = "1.0.0";
 
 function normalizeRisk(value: string | undefined) {
-  if (typeof value !== 'string') {
-    return 'Sin clasificar';
+  if (typeof value !== "string") {
+    return "Sin clasificar";
   }
 
   if (value.trim().length === 0) {
-    return 'Sin clasificar';
+    return "Sin clasificar";
   }
 
   return value;
@@ -33,100 +37,113 @@ function normalizeRisk(value: string | undefined) {
 
 function boolLabel(value: boolean | null | undefined) {
   if (value === true) {
-    return 'Sí';
+    return "Sí";
   }
   if (value === false) {
-    return 'No';
+    return "No";
   }
-  return '--';
+  return "--";
 }
 
 const SURVEY_DEFAULT: Record<string, string | string[]> = {
-  edad_rango: '',
-  contextura: '',
-  cuello_rango: '',
-  tabaquismo: '',
-  alcohol_nocturno: '',
-  actividad_fisica: '',
-  somnolencia_diurna: '',
-  medicamento_noche: '',
+  edad_rango: "",
+  contextura: "",
+  cuello_rango: "",
+  tabaquismo: "",
+  alcohol_nocturno: "",
+  actividad_fisica: "",
+  somnolencia_diurna: "",
+  medicamento_noche: "",
   comorbilidades: [],
 };
 
 const SURVEY_QUESTIONS = [
   {
-    key: 'edad_rango',
-    title: 'Rango de edad',
-    options: ['18-29', '30-39', '40-49', '50-59', '60+'],
+    key: "edad_rango",
+    title: "Rango de edad",
+    options: ["18-29", "30-39", "40-49", "50-59", "60+"],
   },
   {
-    key: 'contextura',
-    title: 'Contextura corporal',
-    options: ['Delgada', 'Media', 'Robusta'],
+    key: "contextura",
+    title: "Contextura corporal",
+    options: ["Delgada", "Media", "Robusta"],
   },
   {
-    key: 'cuello_rango',
-    title: 'Perímetro de cuello estimado',
-    options: ['Pequeño', 'Medio', 'Grande'],
+    key: "cuello_rango",
+    title: "Perímetro de cuello estimado",
+    options: ["Pequeño", "Medio", "Grande"],
   },
   {
-    key: 'somnolencia_diurna',
-    title: 'Somnolencia durante el día',
-    options: ['Nunca', 'A veces', 'Frecuente'],
+    key: "somnolencia_diurna",
+    title: "Somnolencia durante el día",
+    options: ["Nunca", "A veces", "Frecuente"],
   },
   {
-    key: 'tabaquismo',
-    title: 'Consumo de tabaco',
-    options: ['No', 'Ocasional', 'Diario'],
+    key: "tabaquismo",
+    title: "Consumo de tabaco",
+    options: ["No", "Ocasional", "Diario"],
   },
   {
-    key: 'alcohol_nocturno',
-    title: 'Alcohol por la noche',
-    options: ['No', '1-2 noches/semana', '3+ noches/semana'],
+    key: "alcohol_nocturno",
+    title: "Alcohol por la noche",
+    options: ["No", "1-2 noches/semana", "3+ noches/semana"],
   },
   {
-    key: 'actividad_fisica',
-    title: 'Actividad física semanal',
-    options: ['Baja', 'Moderada', 'Alta'],
+    key: "actividad_fisica",
+    title: "Actividad física semanal",
+    options: ["Baja", "Moderada", "Alta"],
   },
   {
-    key: 'medicamento_noche',
-    title: 'Uso de medicación para dormir',
-    options: ['No', 'Ocasional', 'Frecuente'],
+    key: "medicamento_noche",
+    title: "Uso de medicación para dormir",
+    options: ["No", "Ocasional", "Frecuente"],
   },
 ];
 
 const COMORBIDITIES = [
-  'Ninguna',
-  'Hipertensión',
-  'Diabetes',
-  'Rinitis o congestión nasal',
-  'Tiroides',
-  'Ansiedad o depresión',
-  'Enfermedad pulmonar',
+  "Ninguna",
+  "Hipertensión",
+  "Diabetes",
+  "Rinitis o congestión nasal",
+  "Tiroides",
+  "Ansiedad o depresión",
+  "Enfermedad pulmonar",
 ];
 
 export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
   const { user, signOut } = useContext(AppContext);
   const [closingSession, setClosingSession] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showSurvey, setShowSurvey] = useState(false);
   const [savingSurvey, setSavingSurvey] = useState(false);
 
   const [showDeleteData, setShowDeleteData] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
 
-  const [survey, setSurvey] = useState<Record<string, string | string[]>>(SURVEY_DEFAULT);
+  const [survey, setSurvey] =
+    useState<Record<string, string | string[]>>(SURVEY_DEFAULT);
 
-  const fullName = useMemo(() => user?.nombre_completo || user?.full_name || 'Paciente A.S.A.P.', [user]);
-  const email = useMemo(() => user?.email || '--', [user]);
-  const apneaRisk = useMemo(() => normalizeRisk(user?.riesgo_apnea_predicho || user?.apnea_risk), [user]);
+  const fullName = useMemo(
+    () => user?.nombre_completo || user?.full_name || "Paciente A.S.A.P.",
+    [user],
+  );
+  const email = useMemo(() => user?.email || "--", [user]);
+  const apneaRisk = useMemo(
+    () => normalizeRisk(user?.riesgo_apnea_predicho || user?.apnea_risk),
+    [user],
+  );
 
   useEffect(() => {
     async function loadSurvey() {
       const payload = await getProfileSurvey();
-      if (payload && typeof payload === 'object') {
-        setSurvey((prev) => ({ ...prev, ...payload, comorbilidades: Array.isArray(payload.comorbilidades) ? payload.comorbilidades : [] }));
+      if (payload && typeof payload === "object") {
+        setSurvey((prev) => ({
+          ...prev,
+          ...payload,
+          comorbilidades: Array.isArray(payload.comorbilidades)
+            ? payload.comorbilidades
+            : [],
+        }));
       }
     }
 
@@ -135,12 +152,12 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
 
   const handleSignOut = async () => {
     setClosingSession(true);
-    setError('');
+    setError("");
 
     try {
       await signOut();
     } catch {
-      setError('No fue posible cerrar sesión en este momento.');
+      setError("No fue posible cerrar sesión en este momento.");
     } finally {
       setClosingSession(false);
     }
@@ -148,13 +165,13 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
 
   const handleSaveSurvey = async () => {
     setSavingSurvey(true);
-    setError('');
+    setError("");
 
     try {
       await saveProfileSurvey(survey);
       setShowSurvey(false);
     } catch {
-      setError('No fue posible guardar la encuesta.');
+      setError("No fue posible guardar la encuesta.");
     } finally {
       setSavingSurvey(false);
     }
@@ -162,7 +179,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
 
   const handleDeleteLocalData = async () => {
     setDeletingData(true);
-    setError('');
+    setError("");
 
     try {
       await deleteMyAccount();
@@ -170,7 +187,9 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
       setShowDeleteData(false);
       await signOut();
     } catch {
-      setError('No fue posible borrar tus datos. Verifica tu conexión e inténtalo de nuevo.');
+      setError(
+        "No fue posible borrar tus datos. Verifica tu conexión e inténtalo de nuevo.",
+      );
       setShowDeleteData(false);
     } finally {
       setDeletingData(false);
@@ -183,15 +202,20 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
 
   const toggleComorbidity = (value: string) => {
     setSurvey((prev) => {
-      const current = Array.isArray(prev.comorbilidades) ? prev.comorbilidades : [];
+      const current = Array.isArray(prev.comorbilidades)
+        ? prev.comorbilidades
+        : [];
 
-      if (value === 'Ninguna') {
-        return { ...prev, comorbilidades: ['Ninguna'] };
+      if (value === "Ninguna") {
+        return { ...prev, comorbilidades: ["Ninguna"] };
       }
 
-      const filtered = current.filter((item) => item !== 'Ninguna');
+      const filtered = current.filter((item) => item !== "Ninguna");
       if (filtered.includes(value)) {
-        return { ...prev, comorbilidades: filtered.filter((item) => item !== value) };
+        return {
+          ...prev,
+          comorbilidades: filtered.filter((item) => item !== value),
+        };
       }
 
       return { ...prev, comorbilidades: [...filtered, value] };
@@ -203,7 +227,10 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.badge}>Perfil</Text>
         <Text style={styles.title}>Cuenta y salud personal</Text>
-        <Text style={styles.subtitle}>Completa tu información para mejorar el análisis de tu riesgo de apnea.</Text>
+        <Text style={styles.subtitle}>
+          Completa tu información para mejorar el análisis de tu riesgo de
+          apnea.
+        </Text>
 
         <GlassCard style={styles.profileCard}>
           <Text style={styles.name}>{fullName}</Text>
@@ -216,50 +243,75 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Ronca habitualmente</Text>
-              <Text style={styles.infoValue}>{boolLabel(user?.ronca_habitualmente)}</Text>
+              <Text style={styles.infoValue}>
+                {boolLabel(user?.ronca_habitualmente)}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Cansancio diurno</Text>
-              <Text style={styles.infoValue}>{boolLabel(user?.cansancio_diurno)}</Text>
+              <Text style={styles.infoValue}>
+                {boolLabel(user?.cansancio_diurno)}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Consentimiento datos</Text>
-              <Text style={styles.infoValue}>{boolLabel(user?.acepta_consentimiento_datos)}</Text>
+              <Text style={styles.infoValue}>
+                {boolLabel(user?.acepta_consentimiento_datos)}
+              </Text>
             </View>
           </View>
 
           <Pressable
             onPress={() => setShowSurvey(true)}
-            style={({ pressed }) => [styles.surveyButton, pressed ? styles.pressed : null]}
+            style={({ pressed }) => [
+              styles.surveyButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
-            <Text style={styles.surveyButtonText}>Ayúdanos a conocerte mejor</Text>
+            <Text style={styles.surveyButtonText}>
+              Ayúdanos a conocerte mejor
+            </Text>
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.getParent()?.navigate('HistoryTab')}
-            style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}
+            onPress={() => navigation.getParent()?.navigate("HistoryTab")}
+            style={({ pressed }) => [
+              styles.ghostButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
             <Text style={styles.ghostButtonText}>Ver historial completo</Text>
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('EmergencyAlerts')}
-            style={({ pressed }) => [styles.emergencyButton, pressed ? styles.pressed : null]}
+            onPress={() => navigation.navigate("EmergencyAlerts")}
+            style={({ pressed }) => [
+              styles.emergencyButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
-            <Text style={styles.emergencyButtonText}>Configurar alertas de apnea severa</Text>
+            <Text style={styles.emergencyButtonText}>
+              Configurar alertas de apnea severa
+            </Text>
           </Pressable>
 
           <View style={styles.linksRow}>
             <Pressable
-              onPress={() => navigation.navigate('PrivacyPolicy')}
-              style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}
+              onPress={() => navigation.navigate("PrivacyPolicy")}
+              style={({ pressed }) => [
+                styles.linkButton,
+                pressed ? styles.pressed : null,
+              ]}
             >
               <Text style={styles.linkButtonText}>Política de privacidad</Text>
             </Pressable>
 
             <Pressable
-              onPress={() => navigation.navigate('ContactSupport')}
-              style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}
+              onPress={() => navigation.navigate("ContactSupport")}
+              style={({ pressed }) => [
+                styles.linkButton,
+                pressed ? styles.pressed : null,
+              ]}
             >
               <Text style={styles.linkButtonText}>Contacto y soporte</Text>
             </Pressable>
@@ -267,9 +319,14 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
 
           <Pressable
             onPress={() => setShowDeleteData(true)}
-            style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
+            style={({ pressed }) => [
+              styles.deleteButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
-            <Text style={styles.deleteButtonText}>Borrar mi cuenta y datos</Text>
+            <Text style={styles.deleteButtonText}>
+              Borrar mi cuenta y datos
+            </Text>
           </Pressable>
 
           <Pressable
@@ -281,7 +338,11 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
               closingSession ? styles.disabled : null,
             ]}
           >
-            {closingSession ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.signOutText}>Cerrar sesión</Text>}
+            {closingSession ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.signOutText}>Cerrar sesión</Text>
+            )}
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -290,41 +351,76 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
         <GlassCard>
           <Text style={styles.legalTitle}>Aviso médico</Text>
           <Text style={styles.legalText}>
-            A.S.A.P. es una herramienta de apoyo para el monitoreo de apneas y no reemplaza diagnóstico ni tratamiento médico profesional.
+            A.S.A.P. es una herramienta de apoyo para el monitoreo de apneas y
+            no reemplaza diagnóstico ni tratamiento médico profesional.
           </Text>
         </GlassCard>
 
         <Text style={styles.version}>A.S.A.P. · v{APP_VERSION}</Text>
       </ScrollView>
 
-      <Modal visible={showDeleteData} transparent animationType="slide" onRequestClose={() => setShowDeleteData(false)}>
+      <Modal
+        visible={showDeleteData}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDeleteData(false)}
+      >
         <View style={styles.deleteBackdrop}>
           <View style={styles.deleteCard}>
-            <Text style={styles.deleteTitle}>¿Borrar tu cuenta y todos tus datos?</Text>
+            <Text style={styles.deleteTitle}>
+              ¿Borrar tu cuenta y todos tus datos?
+            </Text>
             <Text style={styles.deleteText}>
-              Se eliminarán de forma permanente tu cuenta, tus sesiones de monitoreo y tus datos de salud en la nube,
-              junto con la encuesta, el diario, las preferencias y las alertas guardadas en este celular. Esta acción
-              no se puede deshacer.
+              Se eliminarán de forma permanente tu cuenta, tus sesiones de
+              monitoreo y tus datos de salud en la nube, junto con la encuesta,
+              el diario, las preferencias y las alertas guardadas en este
+              celular. Esta acción no se puede deshacer.
             </Text>
             <View style={styles.deleteActions}>
-              <Pressable style={styles.deleteCancel} onPress={() => setShowDeleteData(false)}>
+              <Pressable
+                style={styles.deleteCancel}
+                onPress={() => setShowDeleteData(false)}
+              >
                 <Text style={styles.deleteCancelText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.deleteConfirm} onPress={handleDeleteLocalData} disabled={deletingData}>
-                {deletingData ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.deleteConfirmText}>Borrar cuenta y datos</Text>}
+              <Pressable
+                style={styles.deleteConfirm}
+                onPress={handleDeleteLocalData}
+                disabled={deletingData}
+              >
+                {deletingData ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteConfirmText}>
+                    Borrar cuenta y datos
+                  </Text>
+                )}
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={showSurvey} transparent animationType="slide" onRequestClose={() => setShowSurvey(false)}>
+      <Modal
+        visible={showSurvey}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSurvey(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Mejorar datos personales para mayor precisión</Text>
-            <Text style={styles.modalSubtitle}>Selecciona opciones sugeridas. Así reducimos errores y mejoramos recomendaciones.</Text>
+            <Text style={styles.modalTitle}>
+              Mejorar datos personales para mayor precisión
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Selecciona opciones sugeridas. Así reducimos errores y mejoramos
+              recomendaciones.
+            </Text>
 
-            <ScrollView style={styles.modalForm} contentContainerStyle={styles.modalFormContent}>
+            <ScrollView
+              style={styles.modalForm}
+              contentContainerStyle={styles.modalFormContent}
+            >
               {SURVEY_QUESTIONS.map((question) => (
                 <View key={question.key} style={styles.questionCard}>
                   <Text style={styles.questionTitle}>{question.title}</Text>
@@ -341,7 +437,14 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
                             pressed ? styles.pressed : null,
                           ]}
                         >
-                          <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{option}</Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              selected ? styles.chipTextSelected : null,
+                            ]}
+                          >
+                            {option}
+                          </Text>
                         </Pressable>
                       );
                     })}
@@ -350,10 +453,14 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
               ))}
 
               <View style={styles.questionCard}>
-                <Text style={styles.questionTitle}>Condiciones de salud asociadas (puedes elegir varias)</Text>
+                <Text style={styles.questionTitle}>
+                  Condiciones de salud asociadas (puedes elegir varias)
+                </Text>
                 <View style={styles.chipWrap}>
                   {COMORBIDITIES.map((option) => {
-                    const selected = Array.isArray(survey.comorbilidades) && survey.comorbilidades.includes(option);
+                    const selected =
+                      Array.isArray(survey.comorbilidades) &&
+                      survey.comorbilidades.includes(option);
                     return (
                       <Pressable
                         key={`comorbidity-${option}`}
@@ -364,7 +471,14 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
                           pressed ? styles.pressed : null,
                         ]}
                       >
-                        <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{option}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selected ? styles.chipTextSelected : null,
+                          ]}
+                        >
+                          {option}
+                        </Text>
                       </Pressable>
                     );
                   })}
@@ -373,11 +487,22 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <Pressable style={styles.modalGhost} onPress={() => setShowSurvey(false)}>
+              <Pressable
+                style={styles.modalGhost}
+                onPress={() => setShowSurvey(false)}
+              >
                 <Text style={styles.modalGhostText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.modalPrimary} onPress={handleSaveSurvey} disabled={savingSurvey}>
-                {savingSurvey ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalPrimaryText}>Guardar</Text>}
+              <Pressable
+                style={styles.modalPrimary}
+                onPress={handleSaveSurvey}
+                disabled={savingSurvey}
+              >
+                {savingSurvey ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalPrimaryText}>Guardar</Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -395,15 +520,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.35)',
+    borderColor: "rgba(37,99,235,0.35)",
     backgroundColor: palette.primarySoft,
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -422,7 +547,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   profileCard: {
-    borderColor: 'rgba(37,99,235,0.28)',
+    borderColor: "rgba(37,99,235,0.28)",
     backgroundColor: palette.surface,
   },
   name: {
@@ -452,7 +577,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.7,
   },
   infoValue: {
@@ -465,9 +590,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.36)',
+    borderColor: "rgba(37,99,235,0.36)",
     backgroundColor: palette.primarySoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   surveyButtonText: {
@@ -480,7 +605,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   ghostButtonText: {
@@ -491,9 +616,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.45)',
+    borderColor: "rgba(220,38,38,0.45)",
     backgroundColor: palette.dangerSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   emergencyButtonText: {
@@ -503,7 +628,7 @@ const styles = StyleSheet.create({
   },
   linksRow: {
     marginTop: 10,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   linkButton: {
@@ -512,7 +637,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   linkButtonText: {
@@ -524,9 +649,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.45)',
+    borderColor: "rgba(220,38,38,0.45)",
     backgroundColor: palette.dangerSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   deleteButtonText: {
@@ -538,7 +663,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     backgroundColor: palette.danger,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 12,
   },
   signOutText: {
@@ -561,7 +686,7 @@ const styles = StyleSheet.create({
   legalTitle: {
     color: palette.primary,
     fontFamily: fonts.bodyBold,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.9,
     fontSize: 11,
   },
@@ -575,17 +700,17 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
   },
   deleteBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(15,23,42,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   deleteCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     borderRadius: 18,
     borderWidth: 1,
@@ -606,7 +731,7 @@ const styles = StyleSheet.create({
   },
   deleteActions: {
     marginTop: 16,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   deleteCancel: {
@@ -614,7 +739,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   deleteCancelText: {
@@ -625,8 +750,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: palette.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 11,
   },
   deleteConfirmText: {
@@ -635,8 +760,8 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(15,23,42,0.5)",
+    justifyContent: "flex-end",
   },
   modalCard: {
     borderTopLeftRadius: 18,
@@ -645,7 +770,7 @@ const styles = StyleSheet.create({
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
     padding: 16,
-    maxHeight: '86%',
+    maxHeight: "86%",
   },
   modalTitle: {
     color: palette.textPrimary,
@@ -679,8 +804,8 @@ const styles = StyleSheet.create({
   },
   chipWrap: {
     marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   chip: {
@@ -692,7 +817,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   chipSelected: {
-    borderColor: 'rgba(37,99,235,0.68)',
+    borderColor: "rgba(37,99,235,0.68)",
     backgroundColor: palette.primarySoft,
   },
   chipText: {
@@ -705,7 +830,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     marginTop: 10,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   modalGhost: {
@@ -713,7 +838,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalGhostText: {
@@ -724,7 +849,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalPrimaryText: {
