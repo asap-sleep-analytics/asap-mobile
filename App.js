@@ -15,6 +15,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { AppState } from 'react-native';
 
 import { AppContext, AppProvider } from './src/context/AppContext';
+import LiveMonitorChip from './src/components/LiveMonitorChip';
 import AuthScreen from './src/features/auth/screens/AuthScreen';
 import DashboardHomeScreen from './src/features/dashboard/screens/DashboardHomeScreen';
 import HistorySessionsScreen from './src/features/history/screens/HistorySessionsScreen';
@@ -25,6 +26,9 @@ import OximeterConnectScreen from './src/features/monitor/screens/OximeterConnec
 import SleepDiaryScreen from './src/features/monitor/screens/SleepDiaryScreen';
 import EmergencyAlertsScreen from './src/features/profile/screens/EmergencyAlertsScreen';
 import ProfileHomeScreen from './src/features/profile/screens/ProfileHomeScreen';
+import HowItWorksScreen from './src/features/info/screens/HowItWorksScreen';
+import PrivacyPolicyScreen from './src/features/info/screens/PrivacyPolicyScreen';
+import ContactSupportScreen from './src/features/info/screens/ContactSupportScreen';
 import TipsDetailScreen from './src/features/tips/screens/TipsDetailScreen';
 import TipsHomeScreen from './src/features/tips/screens/TipsHomeScreen';
 import { recordAppInactivityWindow } from './src/services/localHealth';
@@ -52,6 +56,7 @@ const sharedStackOptions = {
     letterSpacing: 0.6,
     color: palette.textPrimary,
   },
+  headerRight: () => <LiveMonitorChip />,
   cardStyle: {
     backgroundColor: palette.background,
   },
@@ -72,6 +77,11 @@ function DashboardStackNavigator() {
         name="DashboardHome"
         component={DashboardHomeScreen}
         options={{ title: 'Resumen de riesgo' }}
+      />
+      <DashboardStack.Screen
+        name="HowItWorks"
+        component={HowItWorksScreen}
+        options={{ title: 'Cómo funciona' }}
       />
     </DashboardStack.Navigator>
   );
@@ -133,6 +143,16 @@ function ProfileStackNavigator() {
         name="EmergencyAlerts"
         component={EmergencyAlertsScreen}
         options={{ title: 'Alertas de emergencia' }}
+      />
+      <ProfileStack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ title: 'Política de privacidad' }}
+      />
+      <ProfileStack.Screen
+        name="ContactSupport"
+        component={ContactSupportScreen}
+        options={{ title: 'Contacto y soporte' }}
       />
     </ProfileStack.Navigator>
   );

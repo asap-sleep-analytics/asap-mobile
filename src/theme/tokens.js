@@ -3,14 +3,9 @@ export const palette = {
   surface: '#FFFFFF',
   surfaceAlt: '#EFF3F9',
 
-  obsidian: '#F3F6FB',
-  graphite: '#FFFFFF',
-
   primary: '#2563EB',
-  primaryDeep: '#1E40AF',
   primarySoft: '#DBEAFE',
   mint: '#2563EB',
-  mintDeep: '#1E40AF',
 
   textPrimary: '#0F172A',
   textSecondary: '#475569',

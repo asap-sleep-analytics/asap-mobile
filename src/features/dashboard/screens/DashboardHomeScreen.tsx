@@ -213,8 +213,6 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
     return buildFallbackTimeline();
   }, [detections, latestSession?.start_time, summary?.indicadores?.continuidad]);
 
-  const hasData = latestSession || summary?.indicadores?.sleep_score;
-
   if (loading && !summary) {
     return (
       <AmbientBackdrop>
@@ -279,16 +277,16 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
           <View style={styles.actionRow}>
             <Pressable
               style={({ pressed }) => [styles.ghostButton, pressed ? styles.buttonPressed : null]}
-              onPress={() => refreshData(true)}
+              onPress={() => navigation.getParent()?.navigate('HistoryTab')}
             >
-              <Text style={styles.ghostButtonText}>Actualizar</Text>
+              <Text style={styles.ghostButtonText}>Ver historial</Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [styles.ghostButton, pressed ? styles.buttonPressed : null]}
-              onPress={() => navigation.getParent()?.navigate('HistoryTab')}
+              onPress={() => navigation.navigate('HowItWorks')}
             >
-              <Text style={styles.ghostButtonText}>Ver historial</Text>
+              <Text style={styles.ghostButtonText}>¿Cómo funciona?</Text>
             </Pressable>
 
             {refreshing ? <ActivityIndicator color={palette.primary} size="small" /> : null}
@@ -352,17 +350,6 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
             </View>
           </View>
         </GlassCard>
-
-        {hasData ? (
-          <GlassCard style={styles.planCard as any}>
-            <Text style={styles.planEyebrow}>Recomendación</Text>
-            <Text style={styles.planTitle}>{riskVisual.nextStep}</Text>
-            <Text style={styles.planText}>
-              La apneas moderadas y graves están asociadas a eventos de oxigenación baja durante el sueño. Si el patrón se repite,
-              considera consultar a un especialista del sueño con estos registros en mano.
-            </Text>
-          </GlassCard>
-        ) : null}
 
         <Text style={styles.footerDisclaimer}>{summary?.disclaimer_medico || DEFAULT_DISCLAIMER}</Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -639,30 +626,6 @@ const styles = StyleSheet.create({
   },
   chartCanvas: {
     height: 184,
-  },
-  planCard: {
-    borderColor: 'rgba(37,99,235,0.3)',
-    backgroundColor: '#FFFFFF',
-  },
-  planEyebrow: {
-    color: palette.primary,
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  planTitle: {
-    marginTop: 8,
-    color: palette.textPrimary,
-    fontFamily: fonts.headingMedium,
-    fontSize: 22,
-    lineHeight: 26,
-  },
-  planText: {
-    marginTop: 8,
-    color: palette.textSecondary,
-    fontFamily: fonts.bodyRegular,
-    lineHeight: 20,
   },
   footerDisclaimer: {
     color: palette.warning,

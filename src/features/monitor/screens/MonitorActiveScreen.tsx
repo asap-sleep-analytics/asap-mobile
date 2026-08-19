@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioQuality, IOSOutputFormat, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import * as Brightness from 'expo-brightness';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -10,7 +10,6 @@ import { finishSleepSession, uploadSleepFragment, predictApneaFromFile } from '.
 import { triggerSevereApneaAlert } from '../../../services/emergencyAlerts';
 import { getEmergencyAlertSettings } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
-import { useApneaDetection } from '../../../hooks/useApneaDetection';
 import ApneaResultCard from '../../../components/ApneaResultCard';
 import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
 import { riskFromPredictionNivel } from '../../../utils/apneaRisk';
@@ -23,7 +22,11 @@ interface RouteParams {
 
 interface Props {
   route: { params?: RouteParams };
-  navigation: { replace: (screen: string, params?: Record<string, unknown>) => void; goBack: () => void };
+  navigation: {
+    replace: (screen: string, params?: Record<string, unknown>) => void;
+    goBack: () => void;
+    addListener: (event: string, callback: (event: { preventDefault: () => void }) => void) => () => void;
+  };
 }
 
 interface EmergencySettings {
@@ -137,6 +140,8 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   const isFinalizingRef = useRef(false);
   const isStoppingRef = useRef(false);
   const mountedRef = useRef(false);
+  const allowLeaveRef = useRef(false);
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
 
   const brightnessBeforeRef = useRef<number | null>(null);
 
@@ -503,9 +508,11 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
         apnea_events: estimatedApnea,
         ambient_noise_level: finalAmbientNoise,
       });
+      allowLeaveRef.current = true;
       setActiveSleepSessionId('');
       navigation.replace('MonitorSummary', { session: finished || null });
     } catch {
+      allowLeaveRef.current = true;
       setActiveSleepSessionId('');
       navigation.replace('MonitorSummary', {
         session: {
@@ -528,6 +535,27 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
     await restoreBrightness();
   };
+
+  const leaveWithoutSaving = () => {
+    allowLeaveRef.current = true;
+    monitoringRef.current = false;
+    setIsMonitoring(false);
+    setShowExitModal(false);
+    setStatusText('Saliste del monitoreo. La sesión quedó abierta y puedes continuarla desde Monitorear.');
+    navigation.goBack();
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowLeaveRef.current || !monitoringRef.current || !mountedRef.current) {
+        return;
+      }
+      event.preventDefault();
+      setShowExitModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -602,7 +630,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
             <Text style={styles.metricValue}>{predictions.length}</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>SpO2 (aprox.)</Text>
+            <Text style={styles.metricLabel}>SpO2 (estimado)</Text>
             <Text style={styles.metricValue}>{spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : '--'}</Text>
           </View>
           <View style={styles.metricCard}>
@@ -656,14 +684,61 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
           <Text style={styles.secondaryButtonText}>Volver</Text>
         </Pressable>
       ) : (
-        <Pressable
-          style={[styles.stopButton, !isMonitoring ? styles.stopButtonDisabled : null]}
-          onPress={finishMonitoring}
-          disabled={!isMonitoring}
-        >
-          <Text style={styles.stopButtonText}>Finalizar monitoreo</Text>
-        </Pressable>
+        <>
+          <Pressable
+            style={[styles.stopButton, !isMonitoring ? styles.stopButtonDisabled : null]}
+            onPress={() => setShowExitModal(true)}
+            disabled={!isMonitoring}
+          >
+            <Text style={styles.stopButtonText}>Terminar monitoreo</Text>
+          </Pressable>
+          <Text style={styles.exitNote}>
+            Si cierras la app por completo, la grabación se detiene. La sesión queda abierta y podrás continuarla desde
+            la pestaña Monitorear.
+          </Text>
+        </>
       )}
+
+      <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Terminar la sesión</Text>
+            <Text style={styles.modalText}>
+              Elige cómo quieres cerrar este monitoreo:
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => {
+                  setShowExitModal(false);
+                  finishMonitoring();
+                }}
+                style={({ pressed }) => [styles.modalPrimary, pressed ? styles.pressed : null]}
+              >
+                <Text style={styles.modalPrimaryText}>Finalizar y guardar</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={leaveWithoutSaving}
+                style={({ pressed }) => [styles.modalGhost, pressed ? styles.pressed : null]}
+              >
+                <Text style={styles.modalGhostText}>Salir sin guardar</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setShowExitModal(false)}
+                style={({ pressed }) => [styles.modalCancel, pressed ? styles.pressed : null]}
+              >
+                <Text style={styles.modalCancelText}>Continuar monitoreando</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.modalNote}>
+              Si saldrás sin guardar, la sesión queda abierta en tu cuenta y podrás continuarla después.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -855,5 +930,92 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: palette.textPrimary,
     fontFamily: fonts.body,
+  },
+  exitNote: {
+    marginTop: 10,
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
+    padding: 20,
+  },
+  modalTitle: {
+    color: palette.textPrimary,
+    fontFamily: fonts.headingMedium,
+    fontSize: 20,
+  },
+  modalText: {
+    marginTop: 8,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 20,
+  },
+  modalActions: {
+    marginTop: 16,
+    gap: 10,
+  },
+  modalPrimary: {
+    borderRadius: 12,
+    backgroundColor: palette.primary,
+    alignItems: 'center',
+    paddingVertical: 13,
+  },
+  modalPrimaryText: {
+    color: palette.white,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+  },
+  modalGhost: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.danger,
+    backgroundColor: palette.dangerSoft,
+    alignItems: 'center',
+    paddingVertical: 13,
+  },
+  modalGhostText: {
+    color: palette.danger,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+  },
+  modalCancel: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
+    alignItems: 'center',
+    paddingVertical: 13,
+  },
+  modalCancelText: {
+    color: palette.textPrimary,
+    fontFamily: fonts.body,
+    fontSize: 14,
+  },
+  modalNote: {
+    marginTop: 12,
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });
