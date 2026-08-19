@@ -165,3 +165,18 @@ export async function saveEmergencyAlertSettings(settings) {
   await writeJson(EMERGENCY_ALERT_SETTINGS_KEY, normalized);
   return normalized;
 }
+
+const LOCAL_HEALTH_KEYS = [
+  MONITOR_HINTS_KEY,
+  SLEEP_DIARY_KEY,
+  PROFILE_SURVEY_KEY,
+  TIPS_PROGRESS_KEY,
+  OXIMETER_DEVICE_KEY,
+  MONITOR_MODE_KEY,
+  APP_INACTIVITY_WINDOWS_KEY,
+  EMERGENCY_ALERT_SETTINGS_KEY,
+];
+
+export async function clearLocalHealthData() {
+  await Promise.all(LOCAL_HEALTH_KEYS.map((key) => SecureStore.deleteItemAsync(key).catch(() => {})));
+}

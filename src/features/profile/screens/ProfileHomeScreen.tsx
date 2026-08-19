@@ -12,9 +12,11 @@ import {
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { AppContext } from '../../../context/AppContext';
-import { getProfileSurvey, saveProfileSurvey } from '../../../services/localHealth';
+import { clearLocalHealthData, getProfileSurvey, saveProfileSurvey } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
 import type { ProfileSurveyData } from '../../../types';
+
+const APP_VERSION = '1.0.0';
 
 function normalizeRisk(value: string | undefined) {
   if (typeof value !== 'string') {
@@ -110,6 +112,9 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
   const [showSurvey, setShowSurvey] = useState(false);
   const [savingSurvey, setSavingSurvey] = useState(false);
 
+  const [showDeleteData, setShowDeleteData] = useState(false);
+  const [deletingData, setDeletingData] = useState(false);
+
   const [survey, setSurvey] = useState<Record<string, string | string[]>>(SURVEY_DEFAULT);
 
   const fullName = useMemo(() => user?.nombre_completo || user?.full_name || 'Paciente A.S.A.P.', [user]);
@@ -151,6 +156,20 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
       setError('No fue posible guardar la encuesta.');
     } finally {
       setSavingSurvey(false);
+    }
+  };
+
+  const handleDeleteLocalData = async () => {
+    setDeletingData(true);
+    setError('');
+
+    try {
+      await clearLocalHealthData();
+      setShowDeleteData(false);
+    } catch {
+      setError('No fue posible borrar tus datos locales.');
+    } finally {
+      setDeletingData(false);
     }
   };
 
@@ -226,6 +245,29 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
             <Text style={styles.emergencyButtonText}>Configurar alertas de apnea severa</Text>
           </Pressable>
 
+          <View style={styles.linksRow}>
+            <Pressable
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+              style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}
+            >
+              <Text style={styles.linkButtonText}>Política de privacidad</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => navigation.navigate('ContactSupport')}
+              style={({ pressed }) => [styles.linkButton, pressed ? styles.pressed : null]}
+            >
+              <Text style={styles.linkButtonText}>Contacto y soporte</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            onPress={() => setShowDeleteData(true)}
+            style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
+          >
+            <Text style={styles.deleteButtonText}>Borrar mis datos</Text>
+          </Pressable>
+
           <Pressable
             onPress={handleSignOut}
             disabled={closingSession}
@@ -247,7 +289,29 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
             A.S.A.P. es una herramienta de apoyo para el monitoreo de apneas y no reemplaza diagnóstico ni tratamiento médico profesional.
           </Text>
         </GlassCard>
+
+        <Text style={styles.version}>A.S.A.P. · v{APP_VERSION}</Text>
       </ScrollView>
+
+      <Modal visible={showDeleteData} transparent animationType="slide" onRequestClose={() => setShowDeleteData(false)}>
+        <View style={styles.deleteBackdrop}>
+          <View style={styles.deleteCard}>
+            <Text style={styles.deleteTitle}>¿Borrar tus datos de este dispositivo?</Text>
+            <Text style={styles.deleteText}>
+              Se eliminarán la encuesta, el diario de sueño, las preferencias, los progresos de los módulos y las
+              alertas guardadas en este celular. Tus sesiones en la nube no se ven afectadas. Esta acción no se puede deshacer.
+            </Text>
+            <View style={styles.deleteActions}>
+              <Pressable style={styles.deleteCancel} onPress={() => setShowDeleteData(false)}>
+                <Text style={styles.deleteCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable style={styles.deleteConfirm} onPress={handleDeleteLocalData} disabled={deletingData}>
+                {deletingData ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.deleteConfirmText}>Borrar datos locales</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showSurvey} transparent animationType="slide" onRequestClose={() => setShowSurvey(false)}>
         <View style={styles.modalBackdrop}>
@@ -432,6 +496,39 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 13,
   },
+  linksRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  linkButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  linkButtonText: {
+    color: palette.textPrimary,
+    fontFamily: fonts.body,
+    fontSize: 13,
+  },
+  deleteButton: {
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.45)',
+    backgroundColor: palette.dangerSoft,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  deleteButtonText: {
+    color: palette.danger,
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+  },
   signOutButton: {
     marginTop: 10,
     borderRadius: 12,
@@ -468,6 +565,68 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     lineHeight: 20,
+  },
+  version: {
+    color: palette.textMuted,
+    fontFamily: fonts.bodyRegular,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  deleteBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  deleteCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    backgroundColor: palette.surface,
+    padding: 18,
+  },
+  deleteTitle: {
+    color: palette.textPrimary,
+    fontFamily: fonts.headingMedium,
+    fontSize: 20,
+  },
+  deleteText: {
+    marginTop: 8,
+    color: palette.textSecondary,
+    fontFamily: fonts.bodyRegular,
+    lineHeight: 20,
+  },
+  deleteActions: {
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deleteCancel: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: palette.borderSoft,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  deleteCancelText: {
+    color: palette.textPrimary,
+    fontFamily: fonts.body,
+  },
+  deleteConfirm: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: palette.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+  },
+  deleteConfirmText: {
+    color: palette.white,
+    fontFamily: fonts.bodyBold,
   },
   modalBackdrop: {
     flex: 1,

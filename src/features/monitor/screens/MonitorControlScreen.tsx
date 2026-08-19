@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
+import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import SectionBadge from '../../../components/SectionBadge';
 import { AppContext } from '../../../context/AppContext';
@@ -62,6 +64,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState<boolean>(false);
+  const [showPreparation, setShowPreparation] = useState<boolean>(false);
   const [monitorMode, setMonitorMode] = useState<MonitorMode>('cell_only');
   const [oximeterDevice, setOximeterDevice] = useState<any>(null);
   const [oximeterConnected, setOximeterConnected] = useState<boolean>(false);
@@ -190,10 +193,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
   useFocusEffect(
     useCallback(() => {
       refreshSessions();
-      if (!lastNoiseCalibrationAtRef.current) {
-        autoCalibrateAmbientNoise(false);
-      }
-    }, [refreshSessions, autoCalibrateAmbientNoise]),
+    }, [refreshSessions]),
   );
 
   const openSession = useMemo(() => {
@@ -264,7 +264,8 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <AmbientBackdrop>
+      <ScrollView contentContainerStyle={styles.content}>
       <SectionBadge label="Monitoreo nocturno" />
       <Text style={styles.title}>Vigila tu respiración mientras duermes</Text>
       <Text style={styles.subtitle}>Inicia una sesión para detectar apneas y ronquido durante la noche.</Text>
@@ -296,11 +297,29 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
             <ApneaRiskBadge visual={epilepsyRisk} size="sm" />
           </View>
         ) : null}
+
+        <Pressable
+          onPress={() => navigation.getParent()?.navigate('DashboardTab', { screen: 'HowItWorks' })}
+          style={({ pressed }) => [styles.howLink, pressed ? styles.pressed : null]}
+        >
+          <Ionicons name="help-circle-outline" size={15} color={palette.textSecondary} />
+          <Text style={styles.howLinkText}>¿Cómo funciona el monitoreo?</Text>
+        </Pressable>
       </GlassCard>
 
-      <Text style={styles.sectionTitle}>Preparación</Text>
+      <Pressable
+        onPress={() => setShowPreparation((visible) => !visible)}
+        style={styles.sectionToggle}
+        accessibilityRole="button"
+        accessibilityLabel={showPreparation ? 'Ocultar preparación' : 'Ver preparación'}
+      >
+        <Text style={styles.sectionTitle}>Preparación</Text>
+        <Ionicons name={showPreparation ? 'chevron-up' : 'chevron-down'} size={20} color={palette.textSecondary} />
+      </Pressable>
 
-      <GlassCard style={styles.modeCard}>
+      {showPreparation ? (
+        <>
+          <GlassCard style={styles.modeCard}>
         <Text style={styles.modeTitle}>Modo de monitoreo</Text>
         <View style={styles.modeRow}>
           <Pressable
@@ -382,11 +401,9 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
             {sleepDiaryEntries.length > 0 ? 'Actualizar registro' : 'Registrar horas de sueño'}
           </Text>
         </Pressable>
-      </GlassCard>
-
-      <Pressable onPress={refreshSessions} style={({ pressed }) => [styles.ghostButton, pressed ? styles.pressed : null]}>
-        <Text style={styles.ghostButtonText}>Actualizar estado</Text>
-      </Pressable>
+          </GlassCard>
+        </>
+      ) : null}
 
       {loading ? <ActivityIndicator color={palette.primary} style={styles.loader} /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -395,10 +412,10 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Antes de iniciar el monitoreo</Text>
-            <Text style={styles.modalBullet}>• Puedes salir de la app: el proceso continuará por intervalos.</Text>
+            <Text style={styles.modalBullet}>• Puedes bloquear la pantalla mientras monitoreas: la grabación se retoma al volver.</Text>
+            <Text style={styles.modalBullet}>• Si cierras la app por completo, el monitoreo se detiene y la sesión queda abierta para continuarla después.</Text>
             <Text style={styles.modalBullet}>• Se capturan fragmentos cortos de audio, no toda la noche de forma continua.</Text>
-            <Text style={styles.modalBullet}>• Mantén el teléfono cerca de la cama y con batería suficiente.</Text>
-            <Text style={styles.modalBullet}>• Evita cubrir el micrófono y reduce ruidos fuertes.</Text>
+            <Text style={styles.modalBullet}>• Mantén el teléfono cerca de la cama, con batería suficiente y sin cubrir el micrófono.</Text>
 
             <View style={styles.switchRow}>
               <Text style={styles.switchText}>No volver a mostrar</Text>
@@ -416,15 +433,12 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </AmbientBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,
@@ -478,13 +492,32 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  howLink: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  howLinkText: {
+    color: palette.textSecondary,
+    fontFamily: fonts.body,
+    fontSize: 13,
+  },
   sectionTitle: {
-    marginTop: 8,
     color: palette.textSecondary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
+  },
+  sectionToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingVertical: 6,
   },
   modeCard: {
     borderColor: palette.borderSoft,
@@ -572,20 +605,6 @@ const styles = StyleSheet.create({
   diaryPromoCard: {
     borderColor: 'rgba(37,99,235,0.24)',
     backgroundColor: palette.surface,
-  },
-  ghostButton: {
-    marginTop: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: palette.borderSoft,
-    backgroundColor: palette.surface,
-    alignItems: 'center',
-    paddingVertical: 11,
-  },
-  ghostButtonText: {
-    color: palette.textPrimary,
-    fontFamily: fonts.body,
-    fontSize: 14,
   },
   loader: {
     marginTop: 12,
