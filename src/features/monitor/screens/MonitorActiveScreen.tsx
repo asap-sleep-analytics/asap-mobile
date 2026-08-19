@@ -9,9 +9,10 @@ import { AppContext } from '../../../context/AppContext';
 import { finishSleepSession, uploadSleepFragment, predictApneaFromFile } from '../../../services/api';
 import { triggerSevereApneaAlert } from '../../../services/emergencyAlerts';
 import { getEmergencyAlertSettings } from '../../../services/localHealth';
+import { getLatestOximeterReading, startOximeterReading, stopOximeterReading } from '../../../services/oximeterBluetooth';
 import { fonts, palette } from '../../../theme/tokens';
+import type { OximeterReading } from '../../../types';
 import ApneaResultCard from '../../../components/ApneaResultCard';
-import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
 import { riskFromPredictionNivel } from '../../../utils/apneaRisk';
 
 interface RouteParams {
@@ -98,14 +99,6 @@ function formatElapsed(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function generateSimulatedSpo2Values(count = 10): number[] {
-  const values: number[] = [];
-  for (let i = 0; i < count; i++) {
-    values.push(Math.floor(92 + Math.random() * 5));
-  }
-  return values;
-}
-
 export default function MonitorActiveScreen({ route, navigation }: Props) {
   useKeepAwake();
 
@@ -127,8 +120,20 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [spo2Values, setSpo2Values] = useState<number[]>([]);
+  const [liveSpo2, setLiveSpo2] = useState<number | null>(null);
+  const [livePulse, setLivePulse] = useState<number | null>(null);
 
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
+
+  const handleOximeterReading = (reading: OximeterReading) => {
+    if (reading.spo2 !== null) {
+      setLiveSpo2(reading.spo2);
+      spo2SamplesRef.current = [...spo2SamplesRef.current.slice(-11), reading.spo2];
+    }
+    if (reading.pulse !== null) {
+      setLivePulse(reading.pulse);
+    }
+  };
 
   const monitoringRef = useRef(false);
   const recordingRef = useRef<typeof recorder | null>(null);
@@ -151,6 +156,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
   const meteringSamplesRef = useRef(0);
   const severeAlertTriggeredRef = useRef(false);
   const emergencySettingsRef = useRef<EmergencySettings | null>(null);
+  const spo2SamplesRef = useRef<number[]>([]);
 
   const maybeTriggerSevereAlert = async () => {
     if (severeAlertTriggeredRef.current) {
@@ -354,12 +360,13 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
     if (uri && fragmentIndex > 0) {
       try {
-        const currentSpo2 = generateSimulatedSpo2Values(10);
-        setSpo2Values(currentSpo2);
+        const realSpo2 = spo2SamplesRef.current.slice(-10);
+        spo2SamplesRef.current = [];
+        setSpo2Values(realSpo2);
 
         const result = await predictApneaFromFile({
           fileUri: uri,
-          spo2: currentSpo2,
+          spo2: realSpo2.length > 0 ? realSpo2 : undefined,
           modo: 'screening',
           perfil: 'general',
         });
@@ -463,10 +470,21 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
       await applyLowBrightness();
 
+      if (monitoringMode === 'cell_oximeter') {
+        try {
+          await startOximeterReading(handleOximeterReading);
+          setStatusText('Oxímetro vinculado. Registrando SpO2 real.');
+        } catch {
+          setStatusText('No se pudo leer el oxímetro. La sesión continuará solo con audio.');
+        }
+      }
+
       monitoringRef.current = true;
       setIsMonitoring(true);
       setIsPreparing(false);
-      setStatusText('Monitoreo activo. Fragmentando cada 30 segundos.');
+      if (monitoringMode !== 'cell_oximeter') {
+        setStatusText('Monitoreo activo. Fragmentando cada 30 segundos.');
+      }
       startElapsedTicker();
       await startNextFragment();
     } catch (error) {
@@ -488,6 +506,8 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
 
     clearFragmentTimer();
     clearElapsedTimer();
+
+    stopOximeterReading().catch(() => null);
 
     await finalizeCurrentFragment();
 
@@ -567,6 +587,7 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
       clearFragmentTimer();
       clearMeteringTimer();
       clearElapsedTimer();
+      stopOximeterReading().catch(() => null);
 
       const cleanup = async () => {
         try {
@@ -630,9 +651,17 @@ export default function MonitorActiveScreen({ route, navigation }: Props) {
             <Text style={styles.metricValue}>{predictions.length}</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>SpO2 (estimado)</Text>
-            <Text style={styles.metricValue}>{spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : '--'}</Text>
+            <Text style={styles.metricLabel}>{liveSpo2 !== null ? 'SpO2 en vivo' : 'SpO2'}</Text>
+            <Text style={styles.metricValue}>
+              {liveSpo2 !== null ? `${liveSpo2}%` : spo2Values.length > 0 ? `${spo2Values[spo2Values.length - 1]}%` : '--'}
+            </Text>
           </View>
+          {monitoringMode === 'cell_oximeter' && livePulse !== null ? (
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Pulso</Text>
+              <Text style={styles.metricValue}>{livePulse} bpm</Text>
+            </View>
+          ) : null}
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Estado</Text>
             <Text style={[styles.metricValue, { color: isMonitoring ? palette.success : palette.danger, fontSize: 16 }]}>

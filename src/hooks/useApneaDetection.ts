@@ -126,7 +126,7 @@ export function useApneaDetection({
   }, [clearTimer]);
 
   const stopAndPredict = useCallback(
-    async (spo2Values: number[] = [95, 94, 93, 91]): Promise<ApneaResult | undefined> => {
+    async (spo2Values: number[] = []): Promise<ApneaResult | undefined> => {
       try {
         if (!recordingRef.current) {
           throw new Error('No hay grabación activa');
