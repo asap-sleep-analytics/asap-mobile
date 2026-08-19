@@ -12,6 +12,7 @@ import {
 import AmbientBackdrop from '../../../components/AmbientBackdrop';
 import GlassCard from '../../../components/GlassCard';
 import { AppContext } from '../../../context/AppContext';
+import { deleteMyAccount } from '../../../services/api';
 import { clearLocalHealthData, getProfileSurvey, saveProfileSurvey } from '../../../services/localHealth';
 import { fonts, palette } from '../../../theme/tokens';
 import type { ProfileSurveyData } from '../../../types';
@@ -164,10 +165,13 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
     setError('');
 
     try {
+      await deleteMyAccount();
       await clearLocalHealthData();
       setShowDeleteData(false);
+      await signOut();
     } catch {
-      setError('No fue posible borrar tus datos locales.');
+      setError('No fue posible borrar tus datos. Verifica tu conexión e inténtalo de nuevo.');
+      setShowDeleteData(false);
     } finally {
       setDeletingData(false);
     }
@@ -265,7 +269,7 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
             onPress={() => setShowDeleteData(true)}
             style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]}
           >
-            <Text style={styles.deleteButtonText}>Borrar mis datos</Text>
+            <Text style={styles.deleteButtonText}>Borrar mi cuenta y datos</Text>
           </Pressable>
 
           <Pressable
@@ -296,17 +300,18 @@ export default function ProfileHomeScreen({ navigation }: { navigation: any }) {
       <Modal visible={showDeleteData} transparent animationType="slide" onRequestClose={() => setShowDeleteData(false)}>
         <View style={styles.deleteBackdrop}>
           <View style={styles.deleteCard}>
-            <Text style={styles.deleteTitle}>¿Borrar tus datos de este dispositivo?</Text>
+            <Text style={styles.deleteTitle}>¿Borrar tu cuenta y todos tus datos?</Text>
             <Text style={styles.deleteText}>
-              Se eliminarán la encuesta, el diario de sueño, las preferencias, los progresos de los módulos y las
-              alertas guardadas en este celular. Tus sesiones en la nube no se ven afectadas. Esta acción no se puede deshacer.
+              Se eliminarán de forma permanente tu cuenta, tus sesiones de monitoreo y tus datos de salud en la nube,
+              junto con la encuesta, el diario, las preferencias y las alertas guardadas en este celular. Esta acción
+              no se puede deshacer.
             </Text>
             <View style={styles.deleteActions}>
               <Pressable style={styles.deleteCancel} onPress={() => setShowDeleteData(false)}>
                 <Text style={styles.deleteCancelText}>Cancelar</Text>
               </Pressable>
               <Pressable style={styles.deleteConfirm} onPress={handleDeleteLocalData} disabled={deletingData}>
-                {deletingData ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.deleteConfirmText}>Borrar datos locales</Text>}
+                {deletingData ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.deleteConfirmText}>Borrar cuenta y datos</Text>}
               </Pressable>
             </View>
           </View>
