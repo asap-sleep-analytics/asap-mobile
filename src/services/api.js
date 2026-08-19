@@ -52,13 +52,12 @@ const HTTP_ERROR_MESSAGES = {
 };
 
 export function getApiErrorMessage(error, fallback = 'No fue posible completar la solicitud.') {
+  if (error?.response?.data?.detail && typeof error.response.data.detail === 'string' && error.response.data.detail.trim()) {
+    return error.response.data.detail;
+  }
   const status = error?.response?.status;
   if (typeof status === 'number' && HTTP_ERROR_MESSAGES[status]) {
     return HTTP_ERROR_MESSAGES[status];
-  }
-  if (error?.response?.data?.detail) {
-    const detail = error.response.data.detail;
-    return typeof detail === 'string' ? detail : fallback;
   }
   if (error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT') {
     return 'El servidor tardó demasiado en responder. Verifica tu conexión a internet e inténtalo de nuevo.';
@@ -95,9 +94,19 @@ export async function loginUser(payload) {
   return data;
 }
 
+export async function socialLoginUser(payload) {
+  const { data } = await api.post('/api/v1/auth/social/login', payload);
+  return data;
+}
+
 export async function getProfile() {
   const { data } = await api.get('/api/v1/auth/perfil');
   return data;
+}
+
+export async function deleteMyAccount() {
+  const { status } = await api.delete('/api/v1/auth/cuenta');
+  return { status };
 }
 
 export async function getDashboardSummary() {
@@ -180,12 +189,14 @@ export async function predictApnea({ audioFile, spo2, modo = 'screening', perfil
   const formData = new FormData();
   formData.append('audio', audioFile, audioFile.name || 'audio.m4a');
 
+  const spo2Str = Array.isArray(spo2) ? spo2.map((v) => v.toString()).join(',') : spo2;
+  const params = { modo, perfil };
+  if (spo2Str && String(spo2Str).trim().length > 0) {
+    params.spo2 = spo2Str;
+  }
+
   const { data } = await api.post('/api/v1/sleep/v3/predict', formData, {
-    params: {
-      spo2,
-      modo,
-      perfil,
-    },
+    params,
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -208,10 +219,12 @@ export async function predictApnea({ audioFile, spo2, modo = 'screening', perfil
 export async function predictApneaFromFile({ fileUri, spo2, modo = 'screening', perfil = 'general' }) {
   const formData = new FormData();
 
-  // Convertir array de SpO2 a string si es necesario
   const spo2Str = Array.isArray(spo2) ? spo2.map((v) => v.toString()).join(',') : spo2;
+  const params = { modo, perfil };
+  if (spo2Str && String(spo2Str).trim().length > 0) {
+    params.spo2 = spo2Str;
+  }
 
-  // Agregar archivo por URI
   formData.append('audio', {
     uri: fileUri,
     type: 'audio/m4a',
@@ -219,11 +232,7 @@ export async function predictApneaFromFile({ fileUri, spo2, modo = 'screening', 
   });
 
   const { data } = await api.post('/api/v1/sleep/v3/predict', formData, {
-    params: {
-      spo2: spo2Str,
-      modo,
-      perfil,
-    },
+    params,
     headers: {
       'Content-Type': 'multipart/form-data',
     },

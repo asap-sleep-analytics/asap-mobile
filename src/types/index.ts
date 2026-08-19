@@ -25,9 +25,21 @@ export interface UserPublic {
   nombre_completo: string;
   email: string;
   activo: boolean;
+  metodo_ingreso: string;
   ronca_habitualmente: boolean | null;
   cansancio_diurno: boolean | null;
   creado_en: string;
+}
+
+export interface SocialLoginPayload {
+  provider: 'google' | 'apple';
+  id_token: string;
+  nombre_completo?: string;
+  ronca_habitualmente?: boolean;
+  cansancio_diurno?: boolean;
+  acepta_terminos_condiciones?: boolean;
+  acepta_consentimiento_datos?: boolean;
+  acepta_disclaimer_medico?: boolean;
 }
 
 export interface AuthResponse {
@@ -171,6 +183,12 @@ export interface OximeterDevice {
 export interface ConnectedOximeter {
   id: string;
   name: string;
+}
+
+export interface OximeterReading {
+  spo2: number | null;
+  pulse: number | null;
+  measuredAt: number | null;
 }
 
 export interface TipsProgressData {

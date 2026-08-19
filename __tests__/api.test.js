@@ -13,6 +13,7 @@ import {
   loginUser,
   predictApnea,
   registerUser,
+  socialLoginUser,
   setAuthToken,
   startSleepSession,
   submitSleepFeedback,
@@ -47,6 +48,13 @@ describe('api error messages', () => {
   it('usa el detail del backend cuando existe', () => {
     const error = { response: { data: { detail: 'Correo ya registrado.' } } };
     expect(getApiErrorMessage(error)).toBe('Correo ya registrado.');
+  });
+
+  it('el detail del backend tiene prioridad sobre el mensaje del status', () => {
+    const error = {
+      response: { status: 401, data: { detail: 'Debes aceptar los términos y condiciones para crear la cuenta.' } },
+    };
+    expect(getApiErrorMessage(error)).toBe('Debes aceptar los términos y condiciones para crear la cuenta.');
   });
 
   it('usa error.message si no hay detail', () => {
@@ -103,6 +111,18 @@ describe('endpoints de autenticación', () => {
       email: 'a@b.com',
       password: 'x',
     });
+  });
+
+  it('socialLoginUser hace POST a /api/v1/auth/social/login', async () => {
+    mockedPost.mockResolvedValueOnce({ data: { token: 'social' } });
+    const payload = {
+      provider: 'google',
+      id_token: 'id-token',
+      acepta_terminos_condiciones: true,
+    };
+    const result = await socialLoginUser(payload);
+    expect(mockedPost).toHaveBeenCalledWith('/api/v1/auth/social/login', payload);
+    expect(result).toEqual({ token: 'social' });
   });
 
   it('getProfile hace GET a /api/v1/auth/perfil', async () => {

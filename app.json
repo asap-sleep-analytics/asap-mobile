@@ -22,7 +22,9 @@
       "expo-sharing",
       "expo-status-bar",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "web": {
       "bundler": "metro"

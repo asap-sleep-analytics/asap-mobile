@@ -17,6 +17,7 @@ import { AppState } from 'react-native';
 import { AppContext, AppProvider } from './src/context/AppContext';
 import LiveMonitorChip from './src/components/LiveMonitorChip';
 import AuthScreen from './src/features/auth/screens/AuthScreen';
+import TermsScreen from './src/features/auth/screens/TermsScreen';
 import DashboardHomeScreen from './src/features/dashboard/screens/DashboardHomeScreen';
 import HistorySessionsScreen from './src/features/history/screens/HistorySessionsScreen';
 import MonitorActiveScreen from './src/features/monitor/screens/MonitorActiveScreen';
@@ -66,6 +67,30 @@ function AuthStackNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="AuthScreen" component={AuthScreen} />
+      <AuthStack.Screen
+        name="Terms"
+        component={TermsScreen}
+        options={{
+          headerShown: true,
+          title: 'Términos y condiciones',
+          headerStyle: {
+            backgroundColor: palette.background,
+            borderBottomWidth: 1,
+            borderBottomColor: palette.borderSoft,
+            shadowOpacity: 0,
+            elevation: 0,
+          },
+          headerTintColor: palette.textPrimary,
+          headerTitleStyle: {
+            fontFamily: fonts.headingMedium,
+            letterSpacing: 0.6,
+            color: palette.textPrimary,
+          },
+          cardStyle: {
+            backgroundColor: palette.background,
+          },
+        }}
+      />
     </AuthStack.Navigator>
   );
 }
