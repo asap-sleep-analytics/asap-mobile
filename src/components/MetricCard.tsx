@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import React from "react";
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
 
-import GlassCard from './GlassCard';
-import { fonts, palette } from '../theme/tokens';
+import GlassCard from "./GlassCard";
+import { fonts, palette } from "../theme/tokens";
 
 type MetricCardProps = {
   label: string;
@@ -11,7 +11,12 @@ type MetricCardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export default function MetricCard({ label, value, valueColor = palette.textPrimary, style }: MetricCardProps) {
+export default function MetricCard({
+  label,
+  value,
+  valueColor = palette.textPrimary,
+  style,
+}: MetricCardProps) {
   return (
     <GlassCard style={[styles.card, style]}>
       <Text style={styles.label}>{label}</Text>
@@ -23,7 +28,7 @@ export default function MetricCard({ label, value, valueColor = palette.textPrim
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
     paddingHorizontal: 8,
@@ -33,7 +38,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyBold,
     fontSize: 10,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.7,
   },
   value: {

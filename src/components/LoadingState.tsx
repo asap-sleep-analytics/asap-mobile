@@ -1,13 +1,15 @@
-import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { fonts, palette } from '../theme/tokens';
+import { fonts, palette } from "../theme/tokens";
 
 type LoadingStateProps = {
   message?: string;
 };
 
-export default function LoadingState({ message = 'Cargando...' }: LoadingStateProps) {
+export default function LoadingState({
+  message = "Cargando...",
+}: LoadingStateProps) {
   return (
     <View style={styles.container}>
       <ActivityIndicator color={palette.primary} size="large" />
@@ -18,8 +20,8 @@ export default function LoadingState({ message = 'Cargando...' }: LoadingStatePr
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 28,
     gap: 12,
   },

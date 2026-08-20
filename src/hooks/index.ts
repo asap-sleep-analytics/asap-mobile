@@ -1,1 +1,1 @@
-export { useApneaDetection } from './useApneaDetection';
+export { useApneaDetection } from "./useApneaDetection";

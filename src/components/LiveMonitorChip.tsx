@@ -1,22 +1,28 @@
-import { useNavigation, useRoute } from '@react-navigation/native';
-import React, { useContext } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useContext } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { AppContext } from '../context/AppContext';
-import { fonts, palette } from '../theme/tokens';
+import { AppContext } from "../context/AppContext";
+import { fonts, palette } from "../theme/tokens";
 
 export default function LiveMonitorChip() {
   const { activeSleepSessionId } = useContext(AppContext);
   const navigation = useNavigation<any>();
   const route = useRoute();
 
-  if (!activeSleepSessionId || route.name === 'MonitorActive' || route.name === 'MonitorSummary') {
+  if (
+    !activeSleepSessionId ||
+    route.name === "MonitorActive" ||
+    route.name === "MonitorSummary"
+  ) {
     return null;
   }
 
   return (
     <Pressable
-      onPress={() => navigation.navigate('MonitorTab', { screen: 'MonitorActive' })}
+      onPress={() =>
+        navigation.navigate("MonitorTab", { screen: "MonitorActive" })
+      }
       style={({ pressed }) => [styles.chip, pressed ? styles.pressed : null]}
       accessibilityRole="button"
       accessibilityLabel="Monitoreo en curso, toca para volver"
@@ -29,8 +35,8 @@ export default function LiveMonitorChip() {
 
 const styles = StyleSheet.create({
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     borderRadius: 999,
     borderWidth: 1,

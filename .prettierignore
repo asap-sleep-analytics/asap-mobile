@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+dist/
+build/
+android/
+ios/
+package-lock.json
+src/hooks/APNEA_DETECTION_GUIDE.js

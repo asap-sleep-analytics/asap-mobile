@@ -1,5 +1,11 @@
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from "@react-navigation/native";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -9,19 +15,31 @@ import {
   Text,
   View,
   useWindowDimensions,
-} from 'react-native';
-import CircularProgress from 'react-native-circular-progress-indicator';
-import { LineChart } from 'react-native-wagmi-charts';
+} from "react-native";
+import CircularProgress from "react-native-circular-progress-indicator";
+import { LineChart } from "react-native-wagmi-charts";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
-import GlassCard from '../../../components/GlassCard';
-import { getApiErrorMessage, getDashboardSummary, listSleepDetections, listSleepSessions } from '../../../services/api';
-import { fonts, palette } from '../../../theme/tokens';
-import type { DetectionLog, SleepContinuityPoint, SleepSessionRecord } from '../../../types';
-import { riskFromApneaEvents } from '../../../utils/apneaRisk';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import ApneaRiskBadge from "../../../components/ApneaRiskBadge";
+import GlassCard from "../../../components/GlassCard";
+import { AppContext } from "../../../context/AppContext";
+import {
+  getApiErrorMessage,
+  getDashboardSummary,
+  listSleepDetections,
+  listSleepSessions,
+  sendEmailVerification,
+} from "../../../services/api";
+import { fonts, palette } from "../../../theme/tokens";
+import type {
+  DetectionLog,
+  SleepContinuityPoint,
+  SleepSessionRecord,
+} from "../../../types";
+import { riskFromApneaEvents } from "../../../utils/apneaRisk";
 
-const DEFAULT_DISCLAIMER = 'A.S.A.P. no reemplaza diagnostico clinico profesional.';
+const DEFAULT_DISCLAIMER =
+  "A.S.A.P. no reemplaza diagnostico clinico profesional.";
 
 interface TimelinePoint {
   timestamp: number;
@@ -42,15 +60,21 @@ interface DashboardSummaryResponse {
   disclaimer_medico?: string;
 }
 
-function resolveSessionStartMs(sessionStart: string | null | undefined, fallbackCount: number): number {
-  const parsed = Date.parse(sessionStart || '');
+function resolveSessionStartMs(
+  sessionStart: string | null | undefined,
+  fallbackCount: number,
+): number {
+  const parsed = Date.parse(sessionStart || "");
   if (Number.isFinite(parsed)) {
     return parsed;
   }
   return Date.now() - Math.max(fallbackCount, 1) * 30 * 1000;
 }
 
-function buildTimelineFromDetections(detections: DetectionLog[] = [], sessionStart: string | null | undefined = null): TimelinePoint[] {
+function buildTimelineFromDetections(
+  detections: DetectionLog[] = [],
+  sessionStart: string | null | undefined = null,
+): TimelinePoint[] {
   if (!Array.isArray(detections) || detections.length === 0) {
     return [];
   }
@@ -58,26 +82,33 @@ function buildTimelineFromDetections(detections: DetectionLog[] = [], sessionSta
   const startMs = resolveSessionStartMs(sessionStart, detections.length);
 
   return detections.slice(0, 360).map((detection, index) => {
-    const startSecond = Number.isFinite(Number(detection.start_second)) ? Number(detection.start_second) : index * 30;
-    const endSecond = Number.isFinite(Number(detection.end_second)) ? Number(detection.end_second) : startSecond + 30;
+    const startSecond = Number.isFinite(Number(detection.start_second))
+      ? Number(detection.start_second)
+      : index * 30;
+    const endSecond = Number.isFinite(Number(detection.end_second))
+      ? Number(detection.end_second)
+      : startSecond + 30;
 
     let value = 34;
-    if (detection.label === 'Ronquido') {
+    if (detection.label === "Ronquido") {
       value = 72;
     }
-    if (detection.label === 'Apnea') {
+    if (detection.label === "Apnea") {
       value = 96;
     }
 
     return {
       timestamp: startMs + Math.round(((startSecond + endSecond) / 2) * 1000),
       value,
-      label: detection.label || 'Normal',
+      label: detection.label || "Normal",
     };
   });
 }
 
-function buildTimelineFromSummary(continuity: SleepContinuityPoint[] = [], sessionStart: string | null | undefined = null): TimelinePoint[] {
+function buildTimelineFromSummary(
+  continuity: SleepContinuityPoint[] = [],
+  sessionStart: string | null | undefined = null,
+): TimelinePoint[] {
   if (!Array.isArray(continuity) || continuity.length === 0) {
     return [];
   }
@@ -85,9 +116,10 @@ function buildTimelineFromSummary(continuity: SleepContinuityPoint[] = [], sessi
   const startMs = resolveSessionStartMs(sessionStart, continuity.length);
 
   return continuity.slice(0, 360).map((point, index) => ({
-    timestamp: startMs + Math.round((Number(point.minuto || index) * 60 + 30) * 1000),
-    value: point.estado === 'interrupcion' ? 72 : 34,
-    label: point.estado === 'interrupcion' ? 'Interrupcion' : 'Normal',
+    timestamp:
+      startMs + Math.round((Number(point.minuto || index) * 60 + 30) * 1000),
+    value: point.estado === "interrupcion" ? 72 : 34,
+    label: point.estado === "interrupcion" ? "Interrupcion" : "Normal",
   }));
 }
 
@@ -96,12 +128,79 @@ function buildFallbackTimeline(): TimelinePoint[] {
   return Array.from({ length: 20 }).map((_, index) => ({
     timestamp: now - (20 - index) * 15 * 60 * 1000,
     value: index % 7 === 0 ? 62 : 36,
-    label: index % 7 === 0 ? 'Interrupcion' : 'Normal',
+    label: index % 7 === 0 ? "Interrupcion" : "Normal",
   }));
 }
 
 interface LoadingStateProps {
   pulse: Animated.Value;
+}
+
+function EmailVerificationBanner() {
+  const { user } = useContext(AppContext) as {
+    user: { email_verificado?: boolean } | null;
+  };
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [bannerError, setBannerError] = useState("");
+
+  const emailVerified = Boolean(user?.email_verificado);
+  if (emailVerified || !user) {
+    return null;
+  }
+
+  const handleResend = async () => {
+    setSending(true);
+    setBannerError("");
+    try {
+      const response = await sendEmailVerification();
+      setSent(true);
+      if (response?.mensaje) {
+        setBannerError(response.mensaje);
+      }
+    } catch (err: unknown) {
+      setBannerError(
+        getApiErrorMessage(
+          err,
+          "No fue posible enviar el correo de verificación.",
+        ),
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <GlassCard style={styles.verifyCard as any}>
+      <View style={styles.verifyRow}>
+        <View style={styles.verifyContent}>
+          <Text style={styles.verifyTitle}>Verifica tu correo</Text>
+          <Text style={styles.verifySubtitle}>
+            Revisa tu bandeja de entrada y confirma tu correo para activar todas
+            las funciones de tu cuenta.
+          </Text>
+          {bannerError ? (
+            <Text style={[styles.verifySubtitle, styles.verifyError]}>
+              {bannerError}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          style={styles.verifyButton}
+          onPress={handleResend}
+          disabled={sending || sent}
+        >
+          {sending ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.verifyButtonText}>
+              {sent ? "Reenviado" : "Reenviar correo"}
+            </Text>
+          )}
+        </Pressable>
+      </View>
+    </GlassCard>
+  );
 }
 
 function LoadingState({ pulse }: LoadingStateProps) {
@@ -111,7 +210,9 @@ function LoadingState({ pulse }: LoadingStateProps) {
         <Text style={styles.sectionTitle}>Preparando tu análisis de apnea</Text>
         <ActivityIndicator color={palette.primary} size="small" />
       </View>
-      <Text style={styles.loadingSubtitle}>Cargando la información de tu última noche...</Text>
+      <Text style={styles.loadingSubtitle}>
+        Cargando la información de tu última noche...
+      </Text>
       <Animated.View style={[styles.loadingBarLarge, { opacity: pulse }]} />
       <Animated.View style={[styles.loadingBarMedium, { opacity: pulse }]} />
       <Animated.View style={[styles.loadingBarSmall, { opacity: pulse }]} />
@@ -119,7 +220,14 @@ function LoadingState({ pulse }: LoadingStateProps) {
   );
 }
 
-export default function DashboardHomeScreen({ navigation }: { navigation: { getParent: () => { navigate: (screen: string) => void } | undefined; navigate: (screen: string) => void } }) {
+export default function DashboardHomeScreen({
+  navigation,
+}: {
+  navigation: {
+    getParent: () => { navigate: (screen: string) => void } | undefined;
+    navigate: (screen: string) => void;
+  };
+}) {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
   const chartWidth = Math.max(170, width - (isCompact ? 112 : 96));
@@ -131,7 +239,7 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const loadingPulse = useRef(new Animated.Value(0.35)).current;
 
@@ -142,18 +250,26 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
       setLoading(true);
     }
 
-    setError('');
+    setError("");
 
     try {
-      const [summaryResponse, sessionsResponse] = await Promise.all([getDashboardSummary(), listSleepSessions(12)]);
+      const [summaryResponse, sessionsResponse] = await Promise.all([
+        getDashboardSummary(),
+        listSleepSessions(12),
+      ]);
       setSummary(summaryResponse);
       setSessions(Array.isArray(sessionsResponse) ? sessionsResponse : []);
 
-      const latestCompletedSession = (sessionsResponse || []).find((session: SleepSessionRecord) => !!session.end_time);
+      const latestCompletedSession = (sessionsResponse || []).find(
+        (session: SleepSessionRecord) => !!session.end_time,
+      );
       if (latestCompletedSession?.session_id) {
         try {
-          const logs = await listSleepDetections(latestCompletedSession.session_id, 900);
-          setDetections(Array.isArray(logs) ? logs : []);
+          const logs = await listSleepDetections(
+            latestCompletedSession.session_id,
+            900,
+          );
+          setDetections(Array.isArray(logs) ? logs : logs?.items || []);
         } catch {
           setDetections([]);
         }
@@ -161,7 +277,9 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
         setDetections([]);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'No fue posible cargar el análisis de riesgo.'));
+      setError(
+        getApiErrorMessage(err, "No fue posible cargar el análisis de riesgo."),
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -182,8 +300,16 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
 
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(loadingPulse, { toValue: 1, duration: 520, useNativeDriver: true }),
-        Animated.timing(loadingPulse, { toValue: 0.35, duration: 620, useNativeDriver: true }),
+        Animated.timing(loadingPulse, {
+          toValue: 1,
+          duration: 520,
+          useNativeDriver: true,
+        }),
+        Animated.timing(loadingPulse, {
+          toValue: 0.35,
+          duration: 620,
+          useNativeDriver: true,
+        }),
       ]),
     );
 
@@ -191,27 +317,48 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
     return () => animation.stop();
   }, [loading, summary, loadingPulse]);
 
-  const latestSession = useMemo(() => sessions.find((session) => !!session.end_time) || sessions[0] || null, [sessions]);
-  const summaryEvents = summary?.indicadores?.eventos_apnea_ronquido || { ronquidos: 0, apnea: 0, total: 0 };
+  const latestSession = useMemo(
+    () => sessions.find((session) => !!session.end_time) || sessions[0] || null,
+    [sessions],
+  );
+  const summaryEvents = summary?.indicadores?.eventos_apnea_ronquido || {
+    ronquidos: 0,
+    apnea: 0,
+    total: 0,
+  };
   const apneaCount = latestSession?.apnea_events ?? summaryEvents.apnea ?? 0;
   const snoreCount = latestSession?.snore_count ?? summaryEvents.ronquidos ?? 0;
-  const sleepScore = latestSession?.sleep_score ?? summary?.indicadores?.sleep_score ?? 0;
+  const sleepScore =
+    latestSession?.sleep_score ?? summary?.indicadores?.sleep_score ?? 0;
 
-  const riskVisual = useMemo(() => riskFromApneaEvents(apneaCount), [apneaCount]);
+  const riskVisual = useMemo(
+    () => riskFromApneaEvents(apneaCount),
+    [apneaCount],
+  );
 
   const continuityData = useMemo(() => {
-    const fromDetections = buildTimelineFromDetections(detections, latestSession?.start_time);
+    const fromDetections = buildTimelineFromDetections(
+      detections,
+      latestSession?.start_time,
+    );
     if (fromDetections.length > 1) {
       return fromDetections;
     }
 
-    const fromSummary = buildTimelineFromSummary(summary?.indicadores?.continuidad || [], latestSession?.start_time);
+    const fromSummary = buildTimelineFromSummary(
+      summary?.indicadores?.continuidad || [],
+      latestSession?.start_time,
+    );
     if (fromSummary.length > 1) {
       return fromSummary;
     }
 
     return buildFallbackTimeline();
-  }, [detections, latestSession?.start_time, summary?.indicadores?.continuidad]);
+  }, [
+    detections,
+    latestSession?.start_time,
+    summary?.indicadores?.continuidad,
+  ]);
 
   if (loading && !summary) {
     return (
@@ -228,24 +375,64 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
+        <EmailVerificationBanner />
         <ApneaRiskBadge visual={riskVisual} size="md" />
 
         <GlassCard style={styles.heroCard as any}>
-          <View style={[styles.heroLayout, isCompact ? styles.heroLayoutCompact : null]}>
-            <View style={[styles.heroTextWrap, isCompact ? styles.heroTextWrapCompact : null]}>
+          <View
+            style={[
+              styles.heroLayout,
+              isCompact ? styles.heroLayoutCompact : null,
+            ]}
+          >
+            <View
+              style={[
+                styles.heroTextWrap,
+                isCompact ? styles.heroTextWrapCompact : null,
+              ]}
+            >
               <Text style={styles.heroEyebrow}>Tu última noche</Text>
-              <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>Análisis de apnea</Text>
-              <Text style={[styles.heroSubtitle, isCompact ? styles.heroSubtitleCompact : null]}>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  isCompact ? styles.heroTitleCompact : null,
+                ]}
+              >
+                Análisis de apnea
+              </Text>
+              <Text
+                style={[
+                  styles.heroSubtitle,
+                  isCompact ? styles.heroSubtitleCompact : null,
+                ]}
+              >
                 {riskVisual.interpretation}
               </Text>
 
-              <View style={[styles.riskPanel, { backgroundColor: riskVisual.softColor, borderColor: riskVisual.color }]}>
-                <Text style={[styles.riskStepLabel, { color: riskVisual.color }]}>Qué hacer hoy</Text>
+              <View
+                style={[
+                  styles.riskPanel,
+                  {
+                    backgroundColor: riskVisual.softColor,
+                    borderColor: riskVisual.color,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.riskStepLabel, { color: riskVisual.color }]}
+                >
+                  Qué hacer hoy
+                </Text>
                 <Text style={styles.riskStepText}>{riskVisual.nextStep}</Text>
               </View>
             </View>
 
-            <View style={[styles.scoreWrap, isCompact ? styles.scoreWrapCompact : null]}>
+            <View
+              style={[
+                styles.scoreWrap,
+                isCompact ? styles.scoreWrapCompact : null,
+              ]}
+            >
               <CircularProgress
                 value={sleepScore}
                 radius={scoreRadius}
@@ -260,7 +447,7 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
                 progressValueStyle={styles.scoreValue}
                 title="Calidad"
                 titleStyle={styles.scoreTitle}
-                subtitle={sleepScore >= 65 ? 'Aceptable' : 'A mejorar'}
+                subtitle={sleepScore >= 65 ? "Aceptable" : "A mejorar"}
                 subtitleStyle={styles.scoreSubtitle}
                 valueSuffix=""
               />
@@ -268,50 +455,82 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
           </View>
 
           <Pressable
-            style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
-            onPress={() => navigation.getParent()?.navigate('MonitorTab')}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.buttonPressed : null,
+            ]}
+            onPress={() => navigation.getParent()?.navigate("MonitorTab")}
           >
             <Text style={styles.primaryButtonText}>Monitorear esta noche</Text>
           </Pressable>
 
           <View style={styles.actionRow}>
             <Pressable
-              style={({ pressed }) => [styles.ghostButton, pressed ? styles.buttonPressed : null]}
-              onPress={() => navigation.getParent()?.navigate('HistoryTab')}
+              style={({ pressed }) => [
+                styles.ghostButton,
+                pressed ? styles.buttonPressed : null,
+              ]}
+              onPress={() => navigation.getParent()?.navigate("HistoryTab")}
             >
               <Text style={styles.ghostButtonText}>Ver historial</Text>
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.ghostButton, pressed ? styles.buttonPressed : null]}
-              onPress={() => navigation.navigate('HowItWorks')}
+              style={({ pressed }) => [
+                styles.ghostButton,
+                pressed ? styles.buttonPressed : null,
+              ]}
+              onPress={() => navigation.navigate("HowItWorks")}
             >
               <Text style={styles.ghostButtonText}>¿Cómo funciona?</Text>
             </Pressable>
 
-            {refreshing ? <ActivityIndicator color={palette.primary} size="small" /> : null}
+            {refreshing ? (
+              <ActivityIndicator color={palette.primary} size="small" />
+            ) : null}
           </View>
 
           {latestSession?.analysis_label ? (
-            <Text style={styles.sourceNote}>{latestSession.analysis_label}</Text>
+            <Text style={styles.sourceNote}>
+              {latestSession.analysis_label}
+            </Text>
           ) : latestSession && !latestSession.model_source ? (
             <Text style={styles.sourceNote}>
-              Esta noche se registró sin análisis de audio; las métricas son estimaciones del teléfono.
+              Esta noche se registró sin análisis de audio; las métricas son
+              estimaciones del teléfono.
             </Text>
           ) : null}
         </GlassCard>
 
         <View style={styles.featuresRow}>
-          <View style={[styles.featureCard, isCompact ? styles.featureCardCompact : null]}>
+          <View
+            style={[
+              styles.featureCard,
+              isCompact ? styles.featureCardCompact : null,
+            ]}
+          >
             <Text style={styles.featureLabel}>Apneas</Text>
-            <Text style={[styles.featureValue, { color: palette.danger }]}>{apneaCount}</Text>
-            <Text style={styles.featureHint}>Eventos respiratorios de la noche.</Text>
+            <Text style={[styles.featureValue, { color: palette.danger }]}>
+              {apneaCount}
+            </Text>
+            <Text style={styles.featureHint}>
+              Eventos respiratorios de la noche.
+            </Text>
           </View>
 
-          <View style={[styles.featureCard, isCompact ? styles.featureCardCompact : null]}>
+          <View
+            style={[
+              styles.featureCard,
+              isCompact ? styles.featureCardCompact : null,
+            ]}
+          >
             <Text style={styles.featureLabel}>Ronquidos</Text>
-            <Text style={[styles.featureValue, { color: palette.primary }]}>{snoreCount}</Text>
-            <Text style={styles.featureHint}>Conteo de ronquidos registrado.</Text>
+            <Text style={[styles.featureValue, { color: palette.primary }]}>
+              {snoreCount}
+            </Text>
+            <Text style={styles.featureHint}>
+              Conteo de ronquidos registrado.
+            </Text>
           </View>
         </View>
 
@@ -319,17 +538,23 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
           <View style={styles.sectionHeadRow}>
             <Text style={styles.sectionTitle}>Eventos durante la noche</Text>
             <Text style={styles.sectionCaption}>
-              {detections.length > 0 ? 'Última noche registrada' : 'Resumen de la última sesión'}
+              {detections.length > 0
+                ? "Última noche registrada"
+                : "Resumen de la última sesión"}
             </Text>
           </View>
 
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#3271F5' }]} />
+              <View
+                style={[styles.legendDot, { backgroundColor: "#3271F5" }]}
+              />
               <Text style={styles.legendText}>Momento de la noche</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: palette.danger }]} />
+              <View
+                style={[styles.legendDot, { backgroundColor: palette.danger }]}
+              />
               <Text style={styles.legendText}>Apnea / interrupción</Text>
             </View>
           </View>
@@ -351,7 +576,9 @@ export default function DashboardHomeScreen({ navigation }: { navigation: { getP
           </View>
         </GlassCard>
 
-        <Text style={styles.footerDisclaimer}>{summary?.disclaimer_medico || DEFAULT_DISCLAIMER}</Text>
+        <Text style={styles.footerDisclaimer}>
+          {summary?.disclaimer_medico || DEFAULT_DISCLAIMER}
+        </Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
     </AmbientBackdrop>
@@ -365,14 +592,59 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 14,
   },
+  verifyCard: {
+    marginBottom: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: palette.primarySoft,
+  },
+  verifyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  verifyContent: {
+    flex: 1,
+  },
+  verifyTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: palette.textPrimary,
+    marginBottom: 4,
+  },
+  verifySubtitle: {
+    fontFamily: fonts.bodyRegular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: palette.textSecondary,
+  },
+  verifyError: {
+    marginTop: 6,
+    color: palette.danger,
+  },
+  verifyButton: {
+    backgroundColor: palette.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 110,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  verifyButtonText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
   loadingCard: {
-    borderColor: 'rgba(37,99,235,0.3)',
-    backgroundColor: '#FFFFFF',
+    borderColor: "rgba(37,99,235,0.3)",
+    backgroundColor: "#FFFFFF",
   },
   loadingHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   loadingSubtitle: {
     marginTop: 8,
@@ -383,51 +655,51 @@ const styles = StyleSheet.create({
     marginTop: 14,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#E2E8F0',
-    width: '100%',
+    backgroundColor: "#E2E8F0",
+    width: "100%",
   },
   loadingBarMedium: {
     marginTop: 10,
     height: 14,
     borderRadius: 8,
-    backgroundColor: '#E8EDF5',
-    width: '84%',
+    backgroundColor: "#E8EDF5",
+    width: "84%",
   },
   loadingBarSmall: {
     marginTop: 10,
     height: 12,
     borderRadius: 8,
-    backgroundColor: '#EEF2F8',
-    width: '56%',
+    backgroundColor: "#EEF2F8",
+    width: "56%",
   },
   heroCard: {
-    borderColor: 'rgba(37,99,235,0.25)',
-    backgroundColor: '#FFFFFF',
+    borderColor: "rgba(37,99,235,0.25)",
+    backgroundColor: "#FFFFFF",
   },
   heroLayout: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    justifyContent: "space-between",
+    flexWrap: "wrap",
   },
   heroLayoutCompact: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
+    flexDirection: "column",
+    alignItems: "stretch",
   },
   heroTextWrap: {
     flex: 1,
     minWidth: 210,
-    maxWidth: '58%',
+    maxWidth: "58%",
   },
   heroTextWrapCompact: {
     minWidth: 0,
-    maxWidth: '100%',
+    maxWidth: "100%",
   },
   heroEyebrow: {
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   heroTitle: {
@@ -460,7 +732,7 @@ const styles = StyleSheet.create({
   riskStepLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.7,
   },
   riskStepText: {
@@ -471,12 +743,12 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   scoreWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minWidth: 150,
   },
   scoreWrapCompact: {
-    width: '100%',
+    width: "100%",
     minWidth: 0,
     marginTop: 4,
   },
@@ -497,7 +769,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 14,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 14,
   },
   primaryButtonText: {
@@ -507,10 +779,10 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   sourceNote: {
     marginTop: 12,
@@ -518,7 +790,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
     lineHeight: 18,
-    textAlign: 'center',
+    textAlign: "center",
   },
   ghostButton: {
     borderRadius: 12,
@@ -538,9 +810,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   featuresRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   featureCard: {
     flex: 1,
@@ -553,14 +825,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   featureCardCompact: {
-    width: '100%',
-    flexBasis: '100%',
+    width: "100%",
+    flexBasis: "100%",
   },
   featureLabel: {
     color: palette.textSecondary,
     fontFamily: fonts.body,
     fontSize: 12,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   featureValue: {
@@ -576,11 +848,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   sectionHeadRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     gap: 10,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   sectionTitle: {
     color: palette.textPrimary,
@@ -594,13 +866,13 @@ const styles = StyleSheet.create({
   },
   legendRow: {
     marginTop: 12,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 14,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   legendDot: {
@@ -618,11 +890,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    backgroundColor: '#F8FAFD',
+    backgroundColor: "#F8FAFD",
     paddingHorizontal: 6,
     paddingVertical: 4,
-    alignItems: 'center',
-    overflow: 'hidden',
+    alignItems: "center",
+    overflow: "hidden",
   },
   chartCanvas: {
     height: 184,

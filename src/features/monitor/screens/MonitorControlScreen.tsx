@@ -1,15 +1,39 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 
-import ApneaRiskBadge from '../../../components/ApneaRiskBadge';
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
-import SectionBadge from '../../../components/SectionBadge';
-import { AppContext } from '../../../context/AppContext';
-import { getApiErrorMessage, listSleepSessions, startSleepSession } from '../../../services/api';
+import ApneaRiskBadge from "../../../components/ApneaRiskBadge";
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
+import SectionBadge from "../../../components/SectionBadge";
+import { AppContext } from "../../../context/AppContext";
+import {
+  getApiErrorMessage,
+  listSleepSessions,
+  startSleepSession,
+} from "../../../services/api";
 import {
   getMonitorHintsHidden,
   getPreferredMonitorMode,
@@ -17,17 +41,26 @@ import {
   listSleepDiaryEntries,
   savePreferredMonitorMode,
   setMonitorHintsHidden,
-} from '../../../services/localHealth';
-import { getConnectedOximeter, isOximeterConnected } from '../../../services/oximeterBluetooth';
-import { fonts, palette } from '../../../theme/tokens';
-import type { MonitorMode, SleepDiaryEntry, SleepSessionStartPayload } from '../../../types';
-import { riskFromApneaEvents } from '../../../utils/apneaRisk';
+} from "../../../services/localHealth";
+import {
+  getConnectedOximeter,
+  isOximeterConnected,
+} from "../../../services/oximeterBluetooth";
+import { fonts, palette } from "../../../theme/tokens";
+import type {
+  MonitorMode,
+  SleepDiaryEntry,
+  SleepSessionStartPayload,
+} from "../../../types";
+import { riskFromApneaEvents } from "../../../utils/apneaRisk";
 
 const NOISE_CALIBRATION_TOTAL_MS = 5000;
 const NOISE_CALIBRATION_SAMPLE_MS = 250;
 
-function toNumberOrUndefined(value: string | null | undefined): number | undefined {
-  if (value === '' || value === null || value === undefined) {
+function toNumberOrUndefined(
+  value: string | null | undefined,
+): number | undefined {
+  if (value === "" || value === null || value === undefined) {
     return undefined;
   }
   const parsed = Number(value);
@@ -42,33 +75,46 @@ function mapMeteringToAmbientDb(meteringDbfs: number): number {
   return clampDb(Math.round(meteringDbfs + 100));
 }
 
-function formatRelativeCalibratedTime(timestamp: number | null | undefined): string {
-  if (!timestamp) return '';
+function formatRelativeCalibratedTime(
+  timestamp: number | null | undefined,
+): string {
+  if (!timestamp) return "";
   const mins = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
-  if (mins === 0) return 'justo ahora';
-  if (mins === 1) return 'hace 1 min';
+  if (mins === 0) return "justo ahora";
+  if (mins === 1) return "hace 1 min";
   return `hace ${mins} min`;
 }
 
-export default function MonitorControlScreen({ navigation }: { navigation: any }) {
-  const { activeSleepSessionId, setActiveSleepSessionId } = useContext(AppContext);
+export default function MonitorControlScreen({
+  navigation,
+}: {
+  navigation: any;
+}) {
+  const { activeSleepSessionId, setActiveSleepSessionId } =
+    useContext(AppContext);
 
   const [sessions, setSessions] = useState<any[]>([]);
-  const [ambientNoise, setAmbientNoise] = useState<string>('45');
+  const [ambientNoise, setAmbientNoise] = useState<string>("45");
   const [isCalibratingNoise, setIsCalibratingNoise] = useState<boolean>(false);
-  const [calibrationSecondsLeft, setCalibrationSecondsLeft] = useState<number | null>(null);
-  const [lastNoiseCalibrationAt, setLastNoiseCalibrationAt] = useState<number | null>(null);
+  const [calibrationSecondsLeft, setCalibrationSecondsLeft] = useState<
+    number | null
+  >(null);
+  const [lastNoiseCalibrationAt, setLastNoiseCalibrationAt] = useState<
+    number | null
+  >(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [working, setWorking] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
 
   const [showIntroModal, setShowIntroModal] = useState<boolean>(false);
   const [doNotShowAgain, setDoNotShowAgain] = useState<boolean>(false);
   const [showPreparation, setShowPreparation] = useState<boolean>(false);
-  const [monitorMode, setMonitorMode] = useState<MonitorMode>('cell_only');
+  const [monitorMode, setMonitorMode] = useState<MonitorMode>("cell_only");
   const [oximeterDevice, setOximeterDevice] = useState<any>(null);
   const [oximeterConnected, setOximeterConnected] = useState<boolean>(false);
-  const [sleepDiaryEntries, setSleepDiaryEntries] = useState<SleepDiaryEntry[]>([]);
+  const [sleepDiaryEntries, setSleepDiaryEntries] = useState<SleepDiaryEntry[]>(
+    [],
+  );
   const isCalibratingNoiseRef = useRef<boolean>(false);
   const lastNoiseCalibrationAtRef = useRef<number | null>(null);
 
@@ -79,7 +125,7 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   const refreshSessions = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const [rows, diaryRows, savedMode, preferredDevice] = await Promise.all([
@@ -103,92 +149,101 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
         setOximeterConnected(false);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'No fue posible cargar tus sesiones.'));
+      setError(getApiErrorMessage(err, "No fue posible cargar tus sesiones."));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const autoCalibrateAmbientNoise = useCallback(async (showErrorMessage: boolean = false) => {
-    if (isCalibratingNoiseRef.current) {
-      return;
-    }
-
-    isCalibratingNoiseRef.current = true;
-    setIsCalibratingNoise(true);
-    setCalibrationSecondsLeft(Math.ceil(NOISE_CALIBRATION_TOTAL_MS / 1000));
-
-    try {
-      const permission = await requestRecordingPermissionsAsync();
-      if (permission.status !== 'granted') {
-        if (showErrorMessage) {
-          setError('No se pudo calibrar automáticamente: permiso de micrófono denegado.');
-        }
+  const autoCalibrateAmbientNoise = useCallback(
+    async (showErrorMessage: boolean = false) => {
+      if (isCalibratingNoiseRef.current) {
         return;
       }
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
+      isCalibratingNoiseRef.current = true;
+      setIsCalibratingNoise(true);
+      setCalibrationSecondsLeft(Math.ceil(NOISE_CALIBRATION_TOTAL_MS / 1000));
 
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-
-      const samples: number[] = [];
-      const startedAt = Date.now();
-
-      while (Date.now() - startedAt < NOISE_CALIBRATION_TOTAL_MS) {
-        await new Promise<void>((resolve) => { setTimeout(resolve, NOISE_CALIBRATION_SAMPLE_MS); });
-        const status = recorder.getStatus();
-        if (status?.isRecording && typeof status.metering === 'number') {
-          samples.push(status.metering);
+      try {
+        const permission = await requestRecordingPermissionsAsync();
+        if (permission.status !== "granted") {
+          if (showErrorMessage) {
+            setError(
+              "No se pudo calibrar automáticamente: permiso de micrófono denegado.",
+            );
+          }
+          return;
         }
 
-        const elapsed = Date.now() - startedAt;
-        const remainingMs = Math.max(0, NOISE_CALIBRATION_TOTAL_MS - elapsed);
-        setCalibrationSecondsLeft(Math.ceil(remainingMs / 1000));
-      }
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+        });
 
-      await recorder.stop();
+        await recorder.prepareToRecordAsync();
+        recorder.record();
 
-      await setAudioModeAsync({
-        allowsRecording: false,
-      });
+        const samples: number[] = [];
+        const startedAt = Date.now();
 
-      if (samples.length > 0) {
-        const avgMetering = samples.reduce((acc: number, value: number) => acc + value, 0) / samples.length;
-        const estimatedDb = mapMeteringToAmbientDb(avgMetering);
-        setAmbientNoise(String(estimatedDb));
-        const now = Date.now();
-        setLastNoiseCalibrationAt(now);
-        lastNoiseCalibrationAtRef.current = now;
-      } else if (showErrorMessage) {
-        setError('No se pudo estimar el ruido ambiente. Intenta recalibrar.');
-      }
-    } catch {
-      if (showErrorMessage) {
-        setError('Falló la calibración automática del ruido ambiente.');
-      }
-    } finally {
-      try {
-        if (recorder.isRecording) {
-          await recorder.stop();
+        while (Date.now() - startedAt < NOISE_CALIBRATION_TOTAL_MS) {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, NOISE_CALIBRATION_SAMPLE_MS);
+          });
+          const status = recorder.getStatus();
+          if (status?.isRecording && typeof status.metering === "number") {
+            samples.push(status.metering);
+          }
+
+          const elapsed = Date.now() - startedAt;
+          const remainingMs = Math.max(0, NOISE_CALIBRATION_TOTAL_MS - elapsed);
+          setCalibrationSecondsLeft(Math.ceil(remainingMs / 1000));
+        }
+
+        await recorder.stop();
+
+        await setAudioModeAsync({
+          allowsRecording: false,
+        });
+
+        if (samples.length > 0) {
+          const avgMetering =
+            samples.reduce((acc: number, value: number) => acc + value, 0) /
+            samples.length;
+          const estimatedDb = mapMeteringToAmbientDb(avgMetering);
+          setAmbientNoise(String(estimatedDb));
+          const now = Date.now();
+          setLastNoiseCalibrationAt(now);
+          lastNoiseCalibrationAtRef.current = now;
+        } else if (showErrorMessage) {
+          setError("No se pudo estimar el ruido ambiente. Intenta recalibrar.");
         }
       } catch {
-        // ignore cleanup failures
-      }
-      try {
-        await setAudioModeAsync({ allowsRecording: false });
-      } catch {
-        // ignore cleanup failures
-      }
+        if (showErrorMessage) {
+          setError("Falló la calibración automática del ruido ambiente.");
+        }
+      } finally {
+        try {
+          if (recorder.isRecording) {
+            await recorder.stop();
+          }
+        } catch {
+          // ignore cleanup failures
+        }
+        try {
+          await setAudioModeAsync({ allowsRecording: false });
+        } catch {
+          // ignore cleanup failures
+        }
 
-      isCalibratingNoiseRef.current = false;
-      setIsCalibratingNoise(false);
-      setCalibrationSecondsLeft(null);
-    }
-  }, []);
+        isCalibratingNoiseRef.current = false;
+        setIsCalibratingNoise(false);
+        setCalibrationSecondsLeft(null);
+      }
+    },
+    [],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -198,18 +253,28 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
 
   const openSession = useMemo(() => {
     if (activeSleepSessionId) {
-      return sessions.find((session: any) => session.session_id === activeSleepSessionId) || { session_id: activeSleepSessionId };
+      return (
+        sessions.find(
+          (session: any) => session.session_id === activeSleepSessionId,
+        ) || { session_id: activeSleepSessionId }
+      );
     }
     return sessions.find((session: any) => !session.end_time) || null;
   }, [activeSleepSessionId, sessions]);
 
-  const latestFinished = useMemo(() => sessions.find((session: any) => !!session.end_time) || null, [sessions]);
+  const latestFinished = useMemo(
+    () => sessions.find((session: any) => !!session.end_time) || null,
+    [sessions],
+  );
 
-  const epilepsyRisk = useMemo(() => riskFromApneaEvents(latestFinished?.apnea_events ?? 0), [latestFinished?.apnea_events]);
+  const epilepsyRisk = useMemo(
+    () => riskFromApneaEvents(latestFinished?.apnea_events ?? 0),
+    [latestFinished?.apnea_events],
+  );
 
   const handleContinue = () => {
     const ambientNoiseLevel = toNumberOrUndefined(ambientNoise);
-    navigation.navigate('MonitorActive', {
+    navigation.navigate("MonitorActive", {
       sessionId: openSession.session_id,
       ambientNoiseLevel,
       monitoringMode: monitorMode,
@@ -219,24 +284,33 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
   const performStart = async () => {
     const ambientNoiseLevel = toNumberOrUndefined(ambientNoise);
     setWorking(true);
-    setError('');
+    setError("");
 
     try {
-      const payload: SleepSessionStartPayload = ambientNoiseLevel === undefined ? {} : { ambient_noise_level: ambientNoiseLevel };
+      const payload: SleepSessionStartPayload =
+        ambientNoiseLevel === undefined
+          ? {}
+          : { ambient_noise_level: ambientNoiseLevel };
       const response: any = await startSleepSession(payload);
       const sessionId = response.sesion.session_id;
       setActiveSleepSessionId(sessionId);
-      navigation.navigate('MonitorActive', { sessionId, ambientNoiseLevel, monitoringMode: monitorMode });
+      navigation.navigate("MonitorActive", {
+        sessionId,
+        ambientNoiseLevel,
+        monitoringMode: monitorMode,
+      });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'No fue posible iniciar el monitoreo.'));
+      setError(getApiErrorMessage(err, "No fue posible iniciar el monitoreo."));
     } finally {
       setWorking(false);
     }
   };
 
   const handleStart = async () => {
-    if (monitorMode === 'cell_oximeter' && !oximeterConnected) {
-      setError('Para este modo debes conectar primero el oxímetro por Bluetooth.');
+    if (monitorMode === "cell_oximeter" && !oximeterConnected) {
+      setError(
+        "Para este modo debes conectar primero el oxímetro por Bluetooth.",
+      );
       return;
     }
 
@@ -266,173 +340,262 @@ export default function MonitorControlScreen({ navigation }: { navigation: any }
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.content}>
-      <SectionBadge label="Monitoreo nocturno" />
-      <Text style={styles.title}>Vigila tu respiración mientras duermes</Text>
-      <Text style={styles.subtitle}>Inicia una sesión para detectar apneas y ronquido durante la noche.</Text>
-
-      <GlassCard style={styles.startCard}>
-        <Text style={styles.startHint}>
-          {openSession
-            ? 'Ya tienes una sesión comenzada. Puedes continuarla o iniciar una nueva.'
-            : 'A.S.A.P. usará el micrófono del celular para registrar fragmentos y analizarlos.'}
+        <SectionBadge label="Monitoreo nocturno" />
+        <Text style={styles.title}>Vigila tu respiración mientras duermes</Text>
+        <Text style={styles.subtitle}>
+          Inicia una sesión para detectar apneas y ronquido durante la noche.
         </Text>
 
+        <GlassCard style={styles.startCard}>
+          <Text style={styles.startHint}>
+            {openSession
+              ? "Ya tienes una sesión comenzada. Puedes continuarla o iniciar una nueva."
+              : "A.S.A.P. usará el micrófono del celular para registrar fragmentos y analizarlos."}
+          </Text>
+
+          <Pressable
+            onPress={handleStart}
+            disabled={working}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.pressed : null,
+              working ? styles.disabled : null,
+            ]}
+          >
+            {working ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {openSession
+                  ? "Continuar monitoreo"
+                  : "Iniciar monitoreo ahora"}
+              </Text>
+            )}
+          </Pressable>
+
+          {latestFinished ? (
+            <View style={styles.lastRow}>
+              <Text style={styles.lastLabel}>Última noche</Text>
+              <ApneaRiskBadge visual={epilepsyRisk} size="sm" />
+            </View>
+          ) : null}
+
+          <Pressable
+            onPress={() =>
+              navigation
+                .getParent()
+                ?.navigate("DashboardTab", { screen: "HowItWorks" })
+            }
+            style={({ pressed }) => [
+              styles.howLink,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={15}
+              color={palette.textSecondary}
+            />
+            <Text style={styles.howLinkText}>¿Cómo funciona el monitoreo?</Text>
+          </Pressable>
+        </GlassCard>
+
         <Pressable
-          onPress={handleStart}
-          disabled={working}
-          style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null, working ? styles.disabled : null]}
+          onPress={() => setShowPreparation((visible) => !visible)}
+          style={styles.sectionToggle}
+          accessibilityRole="button"
+          accessibilityLabel={
+            showPreparation ? "Ocultar preparación" : "Ver preparación"
+          }
         >
-          {working ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {openSession ? 'Continuar monitoreo' : 'Iniciar monitoreo ahora'}
-            </Text>
-          )}
+          <Text style={styles.sectionTitle}>Preparación</Text>
+          <Ionicons
+            name={showPreparation ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={palette.textSecondary}
+          />
         </Pressable>
 
-        {latestFinished ? (
-          <View style={styles.lastRow}>
-            <Text style={styles.lastLabel}>Última noche</Text>
-            <ApneaRiskBadge visual={epilepsyRisk} size="sm" />
-          </View>
+        {showPreparation ? (
+          <>
+            <GlassCard style={styles.modeCard}>
+              <Text style={styles.modeTitle}>Modo de monitoreo</Text>
+              <View style={styles.modeRow}>
+                <Pressable
+                  onPress={async () => {
+                    setMonitorMode("cell_only");
+                    await savePreferredMonitorMode("cell_only");
+                  }}
+                  style={({ pressed }) => [
+                    styles.modeChip,
+                    monitorMode === "cell_only" ? styles.modeChipActive : null,
+                    pressed ? styles.pressed : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeChipText,
+                      monitorMode === "cell_only"
+                        ? styles.modeChipTextActive
+                        : null,
+                    ]}
+                  >
+                    Solo celular
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    setMonitorMode("cell_oximeter");
+                    await savePreferredMonitorMode("cell_oximeter");
+                  }}
+                  style={({ pressed }) => [
+                    styles.modeChip,
+                    monitorMode === "cell_oximeter"
+                      ? styles.modeChipActive
+                      : null,
+                    pressed ? styles.pressed : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modeChipText,
+                      monitorMode === "cell_oximeter"
+                        ? styles.modeChipTextActive
+                        : null,
+                    ]}
+                  >
+                    Celular + oxímetro
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={styles.modeHint}>
+                {monitorMode === "cell_only"
+                  ? "Usa el micrófono del celular. La precisión mejora con el oxímetro."
+                  : `Oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || "OK"})` : "Sin conexión"}`}
+              </Text>
+              <Pressable
+                onPress={() => navigation.navigate("OximeterConnect")}
+                style={({ pressed }) => [
+                  styles.oximeterButton,
+                  pressed ? styles.pressed : null,
+                ]}
+              >
+                <Text style={styles.oximeterButtonText}>
+                  Conectar oxímetro por Bluetooth
+                </Text>
+              </Pressable>
+            </GlassCard>
+
+            <GlassCard style={styles.noiseCard}>
+              <Text style={styles.modeTitle}>Ruido ambiente</Text>
+              <Text style={styles.noiseMetaText}>
+                {isCalibratingNoise
+                  ? `Midiendo el ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
+                  : lastNoiseCalibrationAt
+                    ? `Calibrado automáticamente (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)}), ~${ambientNoise} dB`
+                    : `Nivel objetivo: ~${ambientNoise} dB. Puedes recalibrar.`}
+              </Text>
+              <Pressable
+                onPress={() => autoCalibrateAmbientNoise(true)}
+                disabled={isCalibratingNoise || working}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  isCalibratingNoise || working ? styles.disabled : null,
+                  pressed ? styles.pressed : null,
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {isCalibratingNoise
+                    ? `Calibrando ${calibrationSecondsLeft ?? 0}s`
+                    : "Medir ruido ambiente"}
+                </Text>
+              </Pressable>
+            </GlassCard>
+
+            <GlassCard style={styles.diaryPromoCard}>
+              <Text style={styles.modeTitle}>Registro de horas de sueño</Text>
+              <Text style={styles.noiseMetaText}>
+                {sleepDiaryEntries.length > 0
+                  ? `Llevas ${sleepDiaryEntries.length} registros guardados.`
+                  : "Aún no registras tu horario de sueño. Es útil para el análisis."}
+              </Text>
+              <Pressable
+                onPress={() => navigation.navigate("SleepDiary")}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed ? styles.pressed : null,
+                ]}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {sleepDiaryEntries.length > 0
+                    ? "Actualizar registro"
+                    : "Registrar horas de sueño"}
+                </Text>
+              </Pressable>
+            </GlassCard>
+          </>
         ) : null}
 
-        <Pressable
-          onPress={() => navigation.getParent()?.navigate('DashboardTab', { screen: 'HowItWorks' })}
-          style={({ pressed }) => [styles.howLink, pressed ? styles.pressed : null]}
+        {loading ? (
+          <ActivityIndicator color={palette.primary} style={styles.loader} />
+        ) : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <Modal
+          visible={showIntroModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowIntroModal(false)}
         >
-          <Ionicons name="help-circle-outline" size={15} color={palette.textSecondary} />
-          <Text style={styles.howLinkText}>¿Cómo funciona el monitoreo?</Text>
-        </Pressable>
-      </GlassCard>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                Antes de iniciar el monitoreo
+              </Text>
+              <Text style={styles.modalBullet}>
+                • Puedes bloquear la pantalla mientras monitoreas: la grabación
+                se retoma al volver.
+              </Text>
+              <Text style={styles.modalBullet}>
+                • Si cierras la app por completo, el monitoreo se detiene y la
+                sesión queda abierta para continuarla después.
+              </Text>
+              <Text style={styles.modalBullet}>
+                • Se capturan fragmentos cortos de audio, no toda la noche de
+                forma continua.
+              </Text>
+              <Text style={styles.modalBullet}>
+                • Mantén el teléfono cerca de la cama, con batería suficiente y
+                sin cubrir el micrófono.
+              </Text>
 
-      <Pressable
-        onPress={() => setShowPreparation((visible) => !visible)}
-        style={styles.sectionToggle}
-        accessibilityRole="button"
-        accessibilityLabel={showPreparation ? 'Ocultar preparación' : 'Ver preparación'}
-      >
-        <Text style={styles.sectionTitle}>Preparación</Text>
-        <Ionicons name={showPreparation ? 'chevron-up' : 'chevron-down'} size={20} color={palette.textSecondary} />
-      </Pressable>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>No volver a mostrar</Text>
+                <Switch
+                  value={doNotShowAgain}
+                  onValueChange={setDoNotShowAgain}
+                />
+              </View>
 
-      {showPreparation ? (
-        <>
-          <GlassCard style={styles.modeCard}>
-        <Text style={styles.modeTitle}>Modo de monitoreo</Text>
-        <View style={styles.modeRow}>
-          <Pressable
-            onPress={async () => {
-              setMonitorMode('cell_only');
-              await savePreferredMonitorMode('cell_only');
-            }}
-            style={({ pressed }) => [
-              styles.modeChip,
-              monitorMode === 'cell_only' ? styles.modeChipActive : null,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={[styles.modeChipText, monitorMode === 'cell_only' ? styles.modeChipTextActive : null]}>Solo celular</Text>
-          </Pressable>
-          <Pressable
-            onPress={async () => {
-              setMonitorMode('cell_oximeter');
-              await savePreferredMonitorMode('cell_oximeter');
-            }}
-            style={({ pressed }) => [
-              styles.modeChip,
-              monitorMode === 'cell_oximeter' ? styles.modeChipActive : null,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={[styles.modeChipText, monitorMode === 'cell_oximeter' ? styles.modeChipTextActive : null]}>Celular + oxímetro</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.modeHint}>
-          {monitorMode === 'cell_only'
-            ? 'Usa el micrófono del celular. La precisión mejora con el oxímetro.'
-            : `Oxímetro: ${oximeterConnected ? `Conectado (${oximeterDevice?.name || 'OK'})` : 'Sin conexión'}`}
-        </Text>
-        <Pressable
-          onPress={() => navigation.navigate('OximeterConnect')}
-          style={({ pressed }) => [styles.oximeterButton, pressed ? styles.pressed : null]}
-        >
-          <Text style={styles.oximeterButtonText}>Conectar oxímetro por Bluetooth</Text>
-        </Pressable>
-      </GlassCard>
-
-      <GlassCard style={styles.noiseCard}>
-        <Text style={styles.modeTitle}>Ruido ambiente</Text>
-        <Text style={styles.noiseMetaText}>
-          {isCalibratingNoise
-            ? `Midiendo el ruido ambiente... ${calibrationSecondsLeft ?? 0}s`
-            : lastNoiseCalibrationAt
-            ? `Calibrado automáticamente (${formatRelativeCalibratedTime(lastNoiseCalibrationAt)}), ~${ambientNoise} dB`
-            : `Nivel objetivo: ~${ambientNoise} dB. Puedes recalibrar.`}
-        </Text>
-        <Pressable
-          onPress={() => autoCalibrateAmbientNoise(true)}
-          disabled={isCalibratingNoise || working}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            (isCalibratingNoise || working) ? styles.disabled : null,
-            pressed ? styles.pressed : null,
-          ]}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {isCalibratingNoise ? `Calibrando ${calibrationSecondsLeft ?? 0}s` : 'Medir ruido ambiente'}
-          </Text>
-        </Pressable>
-      </GlassCard>
-
-      <GlassCard style={styles.diaryPromoCard}>
-        <Text style={styles.modeTitle}>Registro de horas de sueño</Text>
-        <Text style={styles.noiseMetaText}>
-          {sleepDiaryEntries.length > 0
-            ? `Llevas ${sleepDiaryEntries.length} registros guardados.`
-            : 'Aún no registras tu horario de sueño. Es útil para el análisis.'}
-        </Text>
-        <Pressable
-          onPress={() => navigation.navigate('SleepDiary')}
-          style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {sleepDiaryEntries.length > 0 ? 'Actualizar registro' : 'Registrar horas de sueño'}
-          </Text>
-        </Pressable>
-          </GlassCard>
-        </>
-      ) : null}
-
-      {loading ? <ActivityIndicator color={palette.primary} style={styles.loader} /> : null}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <Modal visible={showIntroModal} transparent animationType="fade" onRequestClose={() => setShowIntroModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Antes de iniciar el monitoreo</Text>
-            <Text style={styles.modalBullet}>• Puedes bloquear la pantalla mientras monitoreas: la grabación se retoma al volver.</Text>
-            <Text style={styles.modalBullet}>• Si cierras la app por completo, el monitoreo se detiene y la sesión queda abierta para continuarla después.</Text>
-            <Text style={styles.modalBullet}>• Se capturan fragmentos cortos de audio, no toda la noche de forma continua.</Text>
-            <Text style={styles.modalBullet}>• Mantén el teléfono cerca de la cama, con batería suficiente y sin cubrir el micrófono.</Text>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.switchText}>No volver a mostrar</Text>
-              <Switch value={doNotShowAgain} onValueChange={setDoNotShowAgain} />
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalGhost} onPress={() => setShowIntroModal(false)}>
-                <Text style={styles.modalGhostText}>Cancelar</Text>
-              </Pressable>
-              <Pressable style={styles.modalPrimary} onPress={confirmIntroAndStart}>
-                <Text style={styles.modalPrimaryText}>Entendido, iniciar</Text>
-              </Pressable>
+              <View style={styles.modalActions}>
+                <Pressable
+                  style={styles.modalGhost}
+                  onPress={() => setShowIntroModal(false)}
+                >
+                  <Text style={styles.modalGhostText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.modalPrimary}
+                  onPress={confirmIntroAndStart}
+                >
+                  <Text style={styles.modalPrimaryText}>
+                    Entendido, iniciar
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
       </ScrollView>
     </AmbientBackdrop>
   );
@@ -459,8 +622,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   startCard: {
-    borderColor: 'rgba(37,99,235,0.3)',
-    backgroundColor: '#FFFFFF',
+    borderColor: "rgba(37,99,235,0.3)",
+    backgroundColor: "#FFFFFF",
   },
   startHint: {
     color: palette.textSecondary,
@@ -471,7 +634,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     borderRadius: 14,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 14,
   },
   primaryButtonText: {
@@ -481,22 +644,22 @@ const styles = StyleSheet.create({
   },
   lastRow: {
     marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   lastLabel: {
     color: palette.textMuted,
     fontFamily: fonts.body,
     fontSize: 12,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   howLink: {
     marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     paddingVertical: 4,
   },
@@ -510,12 +673,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   sectionToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: 14,
     paddingVertical: 6,
   },
@@ -529,7 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 12,
     marginBottom: 10,
@@ -542,7 +705,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modeChipActive: {
     borderColor: palette.primary,
@@ -566,11 +729,11 @@ const styles = StyleSheet.create({
   oximeterButton: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.4)',
+    borderColor: "rgba(37,99,235,0.4)",
     backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    alignItems: 'center',
+    alignItems: "center",
   },
   oximeterButtonText: {
     color: palette.primary,
@@ -594,7 +757,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 11,
   },
   secondaryButtonText: {
@@ -603,7 +766,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   diaryPromoCard: {
-    borderColor: 'rgba(37,99,235,0.24)',
+    borderColor: "rgba(37,99,235,0.24)",
     backgroundColor: palette.surface,
   },
   loader: {
@@ -622,8 +785,8 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.55)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(15,23,42,0.55)",
+    justifyContent: "center",
     paddingHorizontal: 18,
   },
   modalCard: {
@@ -647,9 +810,9 @@ const styles = StyleSheet.create({
   },
   switchRow: {
     marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   switchText: {
     color: palette.textPrimary,
@@ -657,7 +820,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     marginTop: 14,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   modalGhost: {
@@ -665,7 +828,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalGhostText: {
@@ -676,7 +839,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalPrimaryText: {

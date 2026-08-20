@@ -9,22 +9,25 @@ function parseSafeDate(value: string | null | undefined): number | null {
 export function formatDateTime(value: string | null | undefined): string {
   const parsed = parseSafeDate(value);
   if (parsed === null) {
-    return '--';
+    return "--";
   }
-  return new Date(parsed).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date(parsed).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 export function formatTime(value: string | null | undefined): string {
   const parsed = parseSafeDate(value);
   if (parsed === null) {
-    return '--';
+    return "--";
   }
-  return new Date(parsed).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  return new Date(parsed).toLocaleTimeString("es-CO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatDurationMinutes(
@@ -34,7 +37,7 @@ export function formatDurationMinutes(
   const start = parseSafeDate(startTime);
   const end = parseSafeDate(endTime);
   if (start === null || end === null || end <= start) {
-    return '--';
+    return "--";
   }
 
   const totalMinutes = Math.round((end - start) / 60000);
@@ -50,15 +53,15 @@ export function formatDurationMinutes(
 export function toIsoDate(value: string | null | undefined): string {
   const parsed = parseSafeDate(value);
   if (parsed === null) {
-    return '--';
+    return "--";
   }
-  return new Date(parsed).toISOString().slice(0, 16).replace('T', ' ');
+  return new Date(parsed).toISOString().slice(0, 16).replace("T", " ");
 }
 
 export function toYearMonthDay(value: string | null | undefined): string {
   const parsed = parseSafeDate(value);
   if (parsed === null) {
-    return '--';
+    return "--";
   }
   return new Date(parsed).toISOString().slice(0, 10);
 }

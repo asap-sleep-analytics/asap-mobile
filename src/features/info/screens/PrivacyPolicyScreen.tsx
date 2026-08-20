@@ -1,12 +1,18 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
-import SectionBadge from '../../../components/SectionBadge';
-import { fonts, palette } from '../../../theme/tokens';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
+import SectionBadge from "../../../components/SectionBadge";
+import { fonts, palette } from "../../../theme/tokens";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <GlassCard style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -22,40 +28,51 @@ export default function PrivacyPolicyScreen() {
         <SectionBadge label="Privacidad" />
         <Text style={styles.title}>Política de privacidad</Text>
         <Text style={styles.subtitle}>
-          A.S.A.P. trata tus datos personales y de salud como información sensible. Esto es lo que hacemos con ellos.
+          A.S.A.P. trata tus datos personales y de salud como información
+          sensible. Esto es lo que hacemos con ellos.
         </Text>
 
         <Section title="Qué datos tratamos">
-          Tu cuenta (nombre y correo), los resultados de tus sesiones de monitoreo, la encuesta de salud que decides
-          completar y tus preferencias dentro de la app. Nunca pedimos más información de la necesaria.
+          Tu cuenta (nombre y correo), los resultados de tus sesiones de
+          monitoreo, la encuesta de salud que decides completar y tus
+          preferencias dentro de la app. Nunca pedimos más información de la
+          necesaria.
         </Section>
 
         <Section title="Cómo los usamos">
-          Usamos tus datos exclusivamente para calcular tu análisis de apnea, mostrarte tu historial y mejorar
-          nuestras recomendaciones. No se usan para publicidad ni se venden a terceros.
+          Usamos tus datos exclusivamente para calcular tu análisis de apnea,
+          mostrarte tu historial y mejorar nuestras recomendaciones. No se usan
+          para publicidad ni se venden a terceros.
         </Section>
 
         <Section title="Dónde se guardan">
-          Las sesiones y métricas de salud se almacenan en servidores seguros. Tu encuesta y preferencias locales
-          viven en tu propio dispositivo con cifrado. Tus contactos de emergencia solo se usan si activas las alertas.
+          Las sesiones y métricas de salud se almacenan en servidores seguros.
+          Tu encuesta y preferencias locales viven en tu propio dispositivo con
+          cifrado. Tus contactos de emergencia solo se usan si activas las
+          alertas.
         </Section>
 
         <Section title="Tu derecho (Ley 1581 de 2012)">
-          Bajo la Ley 1581 de 2012 de la República de Colombia, puedes conocer, actualizar y solicitar la eliminación
-          de tus datos personales en cualquier momento. Para ejercerlo, escríbenos a soporte@asap-health.app.
+          Bajo la Ley 1581 de 2012 de la República de Colombia, puedes conocer,
+          actualizar y solicitar la eliminación de tus datos personales en
+          cualquier momento. Para ejercerlo, escríbenos a
+          soporte@asap-health.app.
         </Section>
 
         <Section title="Compartición limitada">
-          A.S.A.P. no comparte tu información de salud con aseguradoras, empleadores ni terceros. Solo autoridades
-          cuando la ley lo exija.
+          A.S.A.P. no comparte tu información de salud con aseguradoras,
+          empleadores ni terceros. Solo autoridades cuando la ley lo exija.
         </Section>
 
         <Section title="Seguridad">
-          Aplicamos cifrado en tránsito y en reposo, autenticación segura y accesos restringidos. Si detectamos un
-          incidente de seguridad, te lo comunicaremos oportunamente.
+          Aplicamos cifrado en tránsito y en reposo, autenticación segura y
+          accesos restringidos. Si detectamos un incidente de seguridad, te lo
+          comunicaremos oportunamente.
         </Section>
 
-        <Text style={styles.footer}>A.S.A.P. — Apnea Sleep Analytics Platform · v1.0</Text>
+        <Text style={styles.footer}>
+          A.S.A.P. — Apnea Sleep Analytics Platform · v1.0
+        </Text>
       </ScrollView>
     </AmbientBackdrop>
   );
@@ -90,7 +107,7 @@ const styles = StyleSheet.create({
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 10,
   },
@@ -104,7 +121,7 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.bodyRegular,
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 4,
   },
 });

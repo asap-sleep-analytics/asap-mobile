@@ -1,22 +1,38 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import type { RiskVisual } from '../utils/apneaRisk';
-import { fonts } from '../theme/tokens';
+import type { RiskVisual } from "../utils/apneaRisk";
+import { fonts } from "../theme/tokens";
 
 type ApneaRiskBadgeProps = {
   visual: RiskVisual;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
 };
 
-export default function ApneaRiskBadge({ visual, size = 'md' }: ApneaRiskBadgeProps) {
-  const isCompact = size === 'sm';
-  const isLarge = size === 'lg';
+export default function ApneaRiskBadge({
+  visual,
+  size = "md",
+}: ApneaRiskBadgeProps) {
+  const isCompact = size === "sm";
+  const isLarge = size === "lg";
 
   return (
-    <View style={[styles.badge, { backgroundColor: visual.softColor, borderColor: visual.color }, isCompact ? styles.badgeSm : null]}>
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: visual.softColor, borderColor: visual.color },
+        isCompact ? styles.badgeSm : null,
+      ]}
+    >
       <View style={[styles.dot, { backgroundColor: visual.color }]} />
-      <Text style={[styles.text, { color: visual.color }, isCompact ? styles.textSm : null, isLarge ? styles.textLg : null]}>
+      <Text
+        style={[
+          styles.text,
+          { color: visual.color },
+          isCompact ? styles.textSm : null,
+          isLarge ? styles.textLg : null,
+        ]}
+      >
         {visual.label}
       </Text>
     </View>
@@ -25,13 +41,13 @@ export default function ApneaRiskBadge({ visual, size = 'md' }: ApneaRiskBadgePr
 
 const styles = StyleSheet.create({
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 7,
   },
   badgeSm: {

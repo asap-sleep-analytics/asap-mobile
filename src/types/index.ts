@@ -1,6 +1,6 @@
-export type MonitorMode = 'cell_only' | 'cell_oximeter';
+export type MonitorMode = "cell_only" | "cell_oximeter";
 
-export type ApneaLevel = 'NORMAL' | 'ALERTA' | 'CRITICO';
+export type ApneaLevel = "NORMAL" | "ALERTA" | "CRITICO";
 
 export interface ApneaDetail {
   prob_audio: number;
@@ -25,9 +25,22 @@ export interface UserPublic {
   nombre_completo: string;
   email: string;
   activo: boolean;
+  metodo_ingreso: string;
   ronca_habitualmente: boolean | null;
   cansancio_diurno: boolean | null;
   creado_en: string;
+  email_verificado?: boolean;
+}
+
+export interface SocialLoginPayload {
+  provider: "google" | "apple";
+  id_token: string;
+  nombre_completo?: string;
+  ronca_habitualmente?: boolean;
+  cansancio_diurno?: boolean;
+  acepta_terminos_condiciones?: boolean;
+  acepta_consentimiento_datos?: boolean;
+  acepta_disclaimer_medico?: boolean;
 }
 
 export interface AuthResponse {
@@ -56,7 +69,7 @@ export interface SleepSessionRecord {
 
 export interface SleepContinuityPoint {
   minuto: number;
-  estado: 'deep_sleep' | 'interrupcion';
+  estado: "deep_sleep" | "interrupcion";
 }
 
 export interface DashboardSummary {
@@ -88,11 +101,12 @@ export interface SleepFeedbackRequest {
 
 export interface SleepCalibrationResponse {
   mensaje: string;
-  nivel_ruido: 'optimo' | 'moderado' | 'alto';
+  nivel_ruido: "optimo" | "moderado" | "alto";
   recomendacion: string;
 }
 
-export type TabName = 'DashboardTab' | 'MonitorTab' | 'TipsTab' | 'HistoryTab' | 'ProfileTab';
+export type TabName =
+  "DashboardTab" | "MonitorTab" | "TipsTab" | "HistoryTab" | "ProfileTab";
 
 export interface SleepDiaryEntry {
   id: string;
@@ -171,6 +185,12 @@ export interface OximeterDevice {
 export interface ConnectedOximeter {
   id: string;
   name: string;
+}
+
+export interface OximeterReading {
+  spo2: number | null;
+  pulse: number | null;
+  measuredAt: number | null;
 }
 
 export interface TipsProgressData {

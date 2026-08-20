@@ -1,19 +1,33 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
-import { getTipsProgress, saveTipsProgress } from '../../../services/localHealth';
-import { fonts, palette } from '../../../theme/tokens';
-import { getTipsModuleById } from '../tipsContent';
-import type { TipsProgressData } from '../../../types';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
+import {
+  getTipsProgress,
+  saveTipsProgress,
+} from "../../../services/localHealth";
+import { fonts, palette } from "../../../theme/tokens";
+import { getTipsModuleById } from "../tipsContent";
+import type { TipsProgressData } from "../../../types";
 
 interface RouteParams {
   moduleId?: string;
   title?: string;
 }
 
-export default function TipsDetailScreen({ route }: { route: { params?: RouteParams } }) {
+export default function TipsDetailScreen({
+  route,
+}: {
+  route: { params?: RouteParams };
+}) {
   const moduleId = route?.params?.moduleId;
   const module = useMemo(() => getTipsModuleById(moduleId), [moduleId]);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
@@ -36,7 +50,9 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
     return (
       <AmbientBackdrop>
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>No se encontró este módulo de consejos.</Text>
+          <Text style={styles.emptyText}>
+            No se encontró este módulo de consejos.
+          </Text>
         </View>
       </AmbientBackdrop>
     );
@@ -51,7 +67,10 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
     await saveTipsProgress(module.id, nextChecked);
   };
 
-  const progress = module.checklist.length > 0 ? Math.round((checkedItems.length / module.checklist.length) * 100) : 0;
+  const progress =
+    module.checklist.length > 0
+      ? Math.round((checkedItems.length / module.checklist.length) * 100)
+      : 0;
 
   const openResource = async (url: string) => {
     try {
@@ -64,7 +83,14 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
   return (
     <AmbientBackdrop>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={[styles.badge, { borderColor: `${module.accent}70`, color: module.accent }]}>Módulo</Text>
+        <Text
+          style={[
+            styles.badge,
+            { borderColor: `${module.accent}70`, color: module.accent },
+          ]}
+        >
+          Módulo
+        </Text>
         <Text style={styles.title}>{module.title}</Text>
         <Text style={styles.subtitle}>{module.description}</Text>
 
@@ -74,18 +100,34 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
             <Text style={styles.progressValue}>{progress}%</Text>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: module.accent }]} />
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress}%`, backgroundColor: module.accent },
+              ]}
+            />
           </View>
-          <Text style={styles.progressHint}>{checkedItems.length} de {module.checklist.length} acciones completadas</Text>
+          <Text style={styles.progressHint}>
+            {checkedItems.length} de {module.checklist.length} acciones
+            completadas
+          </Text>
         </GlassCard>
 
         {module.sections.map((section, index) => {
           const expanded = expandedSectionIndex === index;
           return (
-            <GlassCard key={`${module.id}-${section.title}`} style={styles.sectionCard}>
-              <Pressable onPress={() => setExpandedSectionIndex(expanded ? -1 : index)} style={styles.sectionHeader}>
+            <GlassCard
+              key={`${module.id}-${section.title}`}
+              style={styles.sectionCard}
+            >
+              <Pressable
+                onPress={() => setExpandedSectionIndex(expanded ? -1 : index)}
+                style={styles.sectionHeader}
+              >
                 <Text style={styles.sectionTitle}>{section.title}</Text>
-                <Text style={styles.sectionToggle}>{expanded ? 'Ocultar' : 'Ver'}</Text>
+                <Text style={styles.sectionToggle}>
+                  {expanded ? "Ocultar" : "Ver"}
+                </Text>
               </Pressable>
               {expanded ? (
                 <View style={styles.sectionBody}>
@@ -116,8 +158,15 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
                     pressed ? styles.pressed : null,
                   ]}
                 >
-                  <Text style={styles.checkIcon}>{selected ? '✓' : '○'}</Text>
-                  <Text style={[styles.checkText, selected ? styles.checkTextSelected : null]}>{item}</Text>
+                  <Text style={styles.checkIcon}>{selected ? "✓" : "○"}</Text>
+                  <Text
+                    style={[
+                      styles.checkText,
+                      selected ? styles.checkTextSelected : null,
+                    ]}
+                  >
+                    {item}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -128,7 +177,14 @@ export default function TipsDetailScreen({ route }: { route: { params?: RoutePar
           <Text style={styles.sectionTitle}>Fuentes en español y Colombia</Text>
           <View style={styles.resourcesWrap}>
             {module.resources.map((resource) => (
-              <Pressable key={resource.url} style={({ pressed }) => [styles.resourceButton, pressed ? styles.pressed : null]} onPress={() => openResource(resource.url)}>
+              <Pressable
+                key={resource.url}
+                style={({ pressed }) => [
+                  styles.resourceButton,
+                  pressed ? styles.pressed : null,
+                ]}
+                onPress={() => openResource(resource.url)}
+              >
                 <Text style={styles.resourceButtonText}>{resource.label}</Text>
               </Pressable>
             ))}
@@ -148,21 +204,21 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyText: {
     color: palette.textSecondary,
     fontFamily: fonts.body,
   },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
     backgroundColor: palette.primarySoft,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -185,9 +241,9 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   progressTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   progressTitle: {
     color: palette.textPrimary,
@@ -204,10 +260,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 10,
     backgroundColor: palette.panelStrong,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 999,
   },
   progressHint: {
@@ -221,9 +277,9 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sectionTitle: {
     color: palette.textPrimary,
@@ -240,9 +296,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bulletRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   bulletDot: {
     color: palette.primary,
@@ -266,12 +322,12 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   checkItemSelected: {
-    borderColor: 'rgba(37,99,235,0.6)',
+    borderColor: "rgba(37,99,235,0.6)",
     backgroundColor: palette.primarySoft,
   },
   checkIcon: {
@@ -294,7 +350,7 @@ const styles = StyleSheet.create({
   resourceButton: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.44)',
+    borderColor: "rgba(37,99,235,0.44)",
     backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 11,

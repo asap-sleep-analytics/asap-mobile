@@ -1,5 +1,5 @@
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -9,23 +9,26 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from "react-native";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
-import { getApiErrorMessage } from '../../../services/api';
-import { listSleepDiaryEntries, saveSleepDiaryEntry } from '../../../services/localHealth';
-import { fonts, palette } from '../../../theme/tokens';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
+import { getApiErrorMessage } from "../../../services/api";
+import {
+  listSleepDiaryEntries,
+  saveSleepDiaryEntry,
+} from "../../../services/localHealth";
+import { fonts, palette } from "../../../theme/tokens";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 // ============================================================================
 // UTILITIES
 // ============================================================================
 
 function estimateHours(start: string, end: string): number | null {
-  const [sh, sm] = String(start).split(':').map(Number);
-  const [eh, em] = String(end).split(':').map(Number);
+  const [sh, sm] = String(start).split(":").map(Number);
+  const [eh, em] = String(end).split(":").map(Number);
   if (![sh, sm, eh, em].every(Number.isFinite)) {
     return null;
   }
@@ -40,17 +43,17 @@ function estimateHours(start: string, end: string): number | null {
 }
 
 function format12h(timeValue: string | undefined): string {
-  const [hourText, minuteText] = String(timeValue).split(':');
+  const [hourText, minuteText] = String(timeValue).split(":");
   const hourNumber = Number(hourText);
   const minuteNumber = Number(minuteText);
 
   if (!Number.isFinite(hourNumber) || !Number.isFinite(minuteNumber)) {
-    return '--';
+    return "--";
   }
 
-  const suffix = hourNumber >= 12 ? 'p.m.' : 'a.m.';
+  const suffix = hourNumber >= 12 ? "p.m." : "a.m.";
   const normalizedHour = hourNumber % 12 || 12;
-  return `${normalizedHour}:${String(minuteNumber).padStart(2, '0')} ${suffix}`;
+  return `${normalizedHour}:${String(minuteNumber).padStart(2, "0")} ${suffix}`;
 }
 
 function isoDate(date: Date): string {
@@ -58,21 +61,21 @@ function isoDate(date: Date): string {
 }
 
 function formatDateLabel(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00Z');
+  const date = new Date(dateStr + "T00:00:00Z");
   const today = new Date();
   const todayStr = isoDate(today);
 
   if (dateStr === todayStr) {
-    return 'Hoy';
+    return "Hoy";
   }
 
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   if (dateStr === isoDate(yesterday)) {
-    return 'Ayer';
+    return "Ayer";
   }
 
-  return date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString("es-CO", { month: "short", day: "numeric" });
 }
 
 function getLast7Days(): string[] {
@@ -88,7 +91,7 @@ function getLast7Days(): string[] {
 }
 
 function toNightMinutes(timeStr: string): number | null {
-  const [h, m] = String(timeStr).split(':').map(Number);
+  const [h, m] = String(timeStr).split(":").map(Number);
   if (!Number.isFinite(h) || !Number.isFinite(m)) {
     return null;
   }
@@ -102,7 +105,7 @@ function minutesToHHMM(totalMinutes: number): string {
   if (mins < 0) mins += 24 * 60;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 interface DiaryEntryData {
@@ -121,7 +124,10 @@ function analyzeSleepPattern(entries: DiaryEntryData[]) {
 
   const recentEntries = entries
     .slice(0, 7)
-    .filter((e: DiaryEntryData) => e.start && e.end && Number.isFinite(Number(e.total_hours)));
+    .filter(
+      (e: DiaryEntryData) =>
+        e.start && e.end && Number.isFinite(Number(e.total_hours)),
+    );
   if (recentEntries.length === 0) return null;
 
   const bedtimesNightMins = recentEntries
@@ -130,14 +136,22 @@ function analyzeSleepPattern(entries: DiaryEntryData[]) {
   if (bedtimesNightMins.length === 0) return null;
 
   const avgBedtimeNightMins =
-    bedtimesNightMins.reduce((a: number, b: number) => a + b, 0) / bedtimesNightMins.length;
-  const avgSleep = recentEntries.reduce((sum: number, e: DiaryEntryData) => sum + (e.total_hours || 0), 0) / recentEntries.length;
+    bedtimesNightMins.reduce((a: number, b: number) => a + b, 0) /
+    bedtimesNightMins.length;
+  const avgSleep =
+    recentEntries.reduce(
+      (sum: number, e: DiaryEntryData) => sum + (e.total_hours || 0),
+      0,
+    ) / recentEntries.length;
 
   // Base recommendation around observed bedtime, constrained to a realistic night window.
   let recommendedNightMins = avgBedtimeNightMins;
-  const NIGHT_MIN = 20 * 60;      // 20:00
+  const NIGHT_MIN = 20 * 60; // 20:00
   const NIGHT_MAX = 26 * 60 + 30; // 02:30 mapped as 26:30
-  recommendedNightMins = Math.max(NIGHT_MIN, Math.min(NIGHT_MAX, recommendedNightMins));
+  recommendedNightMins = Math.max(
+    NIGHT_MIN,
+    Math.min(NIGHT_MAX, recommendedNightMins),
+  );
 
   // If sleeping less than target, move bedtime earlier proportionally.
   if (avgSleep < 7.5) {
@@ -150,7 +164,12 @@ function analyzeSleepPattern(entries: DiaryEntryData[]) {
   return {
     recommendedTime: minutesToHHMM(recommendedNightMins),
     avgSleepHours: avgSleep.toFixed(1),
-    consistency: recentEntries.length >= 5 ? 'Alta' : recentEntries.length >= 3 ? 'Media' : 'Baja',
+    consistency:
+      recentEntries.length >= 5
+        ? "Alta"
+        : recentEntries.length >= 3
+          ? "Media"
+          : "Baja",
   };
 }
 
@@ -158,8 +177,19 @@ function analyzeSleepPattern(entries: DiaryEntryData[]) {
 // TIME PICKER COMPONENT
 // ============================================================================
 
-function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; onChange: (val: number) => void; mode?: 'hour' | 'minute' }) {
-  const values = mode === 'hour' ? Array.from({ length: 24 }, (_, i) => i) : Array.from({ length: 60 }, (_, i) => i);
+function SimpleTimePicker({
+  value,
+  onChange,
+  mode = "hour",
+}: {
+  value: number;
+  onChange: (val: number) => void;
+  mode?: "hour" | "minute";
+}) {
+  const values =
+    mode === "hour"
+      ? Array.from({ length: 24 }, (_, i) => i)
+      : Array.from({ length: 60 }, (_, i) => i);
   const itemSize = 50;
   const pickerHeight = 180;
 
@@ -181,7 +211,7 @@ function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; o
                 item === value && styles.timePickerItemTextSelected,
               ]}
             >
-              {String(item).padStart(2, '0')}
+              {String(item).padStart(2, "0")}
             </Text>
           </Pressable>
         )}
@@ -191,7 +221,9 @@ function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; o
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         style={{ height: pickerHeight }}
-        contentContainerStyle={{ paddingVertical: (pickerHeight - itemSize) / 2 }}
+        contentContainerStyle={{
+          paddingVertical: (pickerHeight - itemSize) / 2,
+        }}
       />
     </View>
   );
@@ -201,17 +233,38 @@ function SimpleTimePicker({ value, onChange, mode = 'hour' }: { value: number; o
 // SLEEP HISTORY BAR COMPONENT
 // ============================================================================
 
-function SleepHistoryBar({ entry, isSelected, onPress }: { entry: DiaryEntryData; isSelected: boolean; onPress: () => void }) {
+function SleepHistoryBar({
+  entry,
+  isSelected,
+  onPress,
+}: {
+  entry: DiaryEntryData;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
   const hours = entry.total_hours || 0;
   const barHeight = Math.max(Math.min(hours * 20, 140), 30);
-  const barColor = hours >= 7 ? palette.primary : hours >= 5 ? palette.warning : palette.danger;
+  const barColor =
+    hours >= 7
+      ? palette.primary
+      : hours >= 5
+        ? palette.warning
+        : palette.danger;
 
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.verticalBarContainer, isSelected && styles.verticalBarSelected]}
+      style={[
+        styles.verticalBarContainer,
+        isSelected && styles.verticalBarSelected,
+      ]}
     >
-      <View style={[styles.verticalBarChart, isSelected && styles.verticalBarChartSelected]}>
+      <View
+        style={[
+          styles.verticalBarChart,
+          isSelected && styles.verticalBarChartSelected,
+        ]}
+      >
         <View
           style={[
             styles.verticalBarFill,
@@ -235,22 +288,24 @@ function SleepHistoryBar({ entry, isSelected, onPress }: { entry: DiaryEntryData
 export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntryData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('sleep');
+  const [selectedTab, setSelectedTab] = useState("sleep");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [tempStart, setTempStart] = useState('23:00');
-  const [tempEnd, setTempEnd] = useState('07:00');
+  const [tempStart, setTempStart] = useState("23:00");
+  const [tempEnd, setTempEnd] = useState("07:00");
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const rows = await listSleepDiaryEntries();
       setDiaryEntries(Array.isArray(rows) ? rows : []);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'No fue posible cargar tu registro de sueño.'));
+      setError(
+        getApiErrorMessage(err, "No fue posible cargar tu registro de sueño."),
+      );
     } finally {
       setLoading(false);
     }
@@ -262,12 +317,15 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
     }, [refresh]),
   );
 
-  const sleepRecommendation = useMemo(() => analyzeSleepPattern(diaryEntries), [diaryEntries]);
+  const sleepRecommendation = useMemo(
+    () => analyzeSleepPattern(diaryEntries),
+    [diaryEntries],
+  );
 
   const handleSave = async () => {
     const totalHours = estimateHours(tempStart, tempEnd);
     if (totalHours === null) {
-      setError('No se pudo calcular la duración. Verifica los horarios.');
+      setError("No se pudo calcular la duración. Verifica los horarios.");
       return;
     }
 
@@ -286,20 +344,26 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
       setDiaryEntries(Array.isArray(updated) ? updated : []);
       setShowAddModal(false);
       setSelectedDate(null);
-      setTempStart('23:00');
-      setTempEnd('07:00');
+      setTempStart("23:00");
+      setTempEnd("07:00");
     } catch {
-      setError('No fue posible guardar el registro.');
+      setError("No fue posible guardar el registro.");
     }
   };
 
-  const handleTimeChange = (value: number, type: 'hour' | 'minute', timeType: 'start' | 'end') => {
-    const [h, m] = (timeType === 'start' ? tempStart : tempEnd).split(':').map(Number);
-    const newH = type === 'hour' ? value : h;
-    const newM = type === 'minute' ? value : m;
-    const newTime = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+  const handleTimeChange = (
+    value: number,
+    type: "hour" | "minute",
+    timeType: "start" | "end",
+  ) => {
+    const [h, m] = (timeType === "start" ? tempStart : tempEnd)
+      .split(":")
+      .map(Number);
+    const newH = type === "hour" ? value : h;
+    const newM = type === "minute" ? value : m;
+    const newTime = `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
 
-    if (timeType === 'start') {
+    if (timeType === "start") {
       setTempStart(newTime);
     } else {
       setTempEnd(newTime);
@@ -307,7 +371,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
   };
 
   const parseTime = (timeStr: string): { h: number; m: number } => {
-    const [h, m] = timeStr.split(':').map(Number);
+    const [h, m] = timeStr.split(":").map(Number);
     return { h, m };
   };
 
@@ -352,20 +416,27 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
 
             {/* Today's Sleep Record */}
             {(() => {
-              const todayEntry = diaryEntries.find((e) => e.date === isoDate(new Date()));
+              const todayEntry = diaryEntries.find(
+                (e) => e.date === isoDate(new Date()),
+              );
               return todayEntry ? (
                 <GlassCard style={styles.todayCard}>
                   <Text style={styles.sectionTitle}>Registro de hoy</Text>
                   <View style={styles.todayRecordContent}>
                     <View style={styles.todayRecordItem}>
-                      <Text style={styles.todayRecordLabel}>Cuantas horas dormiste</Text>
-                      <Text style={styles.todayRecordValue}>{todayEntry.total_hours}h</Text>
+                      <Text style={styles.todayRecordLabel}>
+                        Cuantas horas dormiste
+                      </Text>
+                      <Text style={styles.todayRecordValue}>
+                        {todayEntry.total_hours}h
+                      </Text>
                     </View>
                     <View style={styles.todayRecordDivider} />
                     <View style={styles.todayRecordItem}>
                       <Text style={styles.todayRecordLabel}>Horario</Text>
                       <Text style={styles.todayRecordTime}>
-                        {format12h(todayEntry.start)} – {format12h(todayEntry.end)}
+                        {format12h(todayEntry.start)} –{" "}
+                        {format12h(todayEntry.end)}
                       </Text>
                     </View>
                   </View>
@@ -380,14 +451,18 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
 
                 <View style={styles.recommendationGrid}>
                   <View style={styles.recommendationItem}>
-                    <Text style={styles.recommendationLabel}>Hora recomendada</Text>
+                    <Text style={styles.recommendationLabel}>
+                      Hora recomendada
+                    </Text>
                     <Text style={styles.recommendationValue}>
                       {format12h(sleepRecommendation.recommendedTime)}
                     </Text>
                   </View>
 
                   <View style={styles.recommendationItem}>
-                    <Text style={styles.recommendationLabel}>Promedio de sueño</Text>
+                    <Text style={styles.recommendationLabel}>
+                      Promedio de sueño
+                    </Text>
                     <Text style={styles.recommendationValue}>
                       {sleepRecommendation.avgSleepHours}h
                     </Text>
@@ -395,15 +470,23 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
 
                   <View style={styles.recommendationItem}>
                     <Text style={styles.recommendationLabel}>Consistencia</Text>
-                    <Text style={styles.recommendationValue}>{sleepRecommendation.consistency}</Text>
+                    <Text style={styles.recommendationValue}>
+                      {sleepRecommendation.consistency}
+                    </Text>
                   </View>
                 </View>
 
                 <Text style={styles.recommendationText}>
-                  🌙 Basándonos en tu patrón de sueño, te recomendamos acostarte a las{' '}
-                  <Text style={{ color: palette.primary, fontFamily: fonts.bodyBold }}>
+                  🌙 Basándonos en tu patrón de sueño, te recomendamos acostarte
+                  a las{" "}
+                  <Text
+                    style={{
+                      color: palette.primary,
+                      fontFamily: fonts.bodyBold,
+                    }}
+                  >
                     {format12h(sleepRecommendation.recommendedTime)}
-                  </Text>{' '}
+                  </Text>{" "}
                   para un descanso óptimo.
                 </Text>
               </GlassCard>
@@ -414,7 +497,9 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
         {diaryEntries.length === 0 && !loading && (
           <GlassCard style={styles.emptyCard}>
             <Text style={styles.emptyText}>No hay registros de sueño aún.</Text>
-            <Text style={styles.emptySubtext}>Añade tu primer registro para ver análisis y recomendaciones.</Text>
+            <Text style={styles.emptySubtext}>
+              Añade tu primer registro para ver análisis y recomendaciones.
+            </Text>
           </GlassCard>
         )}
 
@@ -441,7 +526,9 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
                 <Text style={styles.modalCloseButton}>✕</Text>
               </Pressable>
               <Text style={styles.modalTitle}>
-                {selectedDate ? `Registrar: ${formatDateLabel(selectedDate)}` : 'Registrar sueño'}
+                {selectedDate
+                  ? `Registrar: ${formatDateLabel(selectedDate)}`
+                  : "Registrar sueño"}
               </Text>
               <View style={{ width: 30 }} />
             </View>
@@ -449,18 +536,31 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
             {/* Tabs */}
             <View style={styles.tabsContainer}>
               <Pressable
-                onPress={() => setSelectedTab('sleep')}
-                style={[styles.tab, selectedTab === 'sleep' && styles.tabActive]}
+                onPress={() => setSelectedTab("sleep")}
+                style={[
+                  styles.tab,
+                  selectedTab === "sleep" && styles.tabActive,
+                ]}
               >
-                <Text style={[styles.tabText, selectedTab === 'sleep' && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    selectedTab === "sleep" && styles.tabTextActive,
+                  ]}
+                >
                   A dormir
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setSelectedTab('wake')}
-                style={[styles.tab, selectedTab === 'wake' && styles.tabActive]}
+                onPress={() => setSelectedTab("wake")}
+                style={[styles.tab, selectedTab === "wake" && styles.tabActive]}
               >
-                <Text style={[styles.tabText, selectedTab === 'wake' && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    selectedTab === "wake" && styles.tabTextActive,
+                  ]}
+                >
                   A levantarse
                 </Text>
               </Pressable>
@@ -468,7 +568,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
 
             {/* Time Selection */}
             <View style={styles.timeSelectionContainer}>
-              {selectedTab === 'sleep' ? (
+              {selectedTab === "sleep" ? (
                 <>
                   <Text style={styles.timeLabel}>Hora a dormir</Text>
                   <Text style={styles.timeLargeDisplay}>{tempStart}</Text>
@@ -478,7 +578,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
                       <Text style={styles.timeSubLabel}>Hora</Text>
                       <SimpleTimePicker
                         value={currentStart.h}
-                        onChange={(h) => handleTimeChange(h, 'hour', 'start')}
+                        onChange={(h) => handleTimeChange(h, "hour", "start")}
                         mode="hour"
                       />
                     </View>
@@ -487,7 +587,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
                       <Text style={styles.timeSubLabel}>Min</Text>
                       <SimpleTimePicker
                         value={currentStart.m}
-                        onChange={(m) => handleTimeChange(m, 'minute', 'start')}
+                        onChange={(m) => handleTimeChange(m, "minute", "start")}
                         mode="minute"
                       />
                     </View>
@@ -503,7 +603,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
                       <Text style={styles.timeSubLabel}>Hora</Text>
                       <SimpleTimePicker
                         value={currentEnd.h}
-                        onChange={(h) => handleTimeChange(h, 'hour', 'end')}
+                        onChange={(h) => handleTimeChange(h, "hour", "end")}
                         mode="hour"
                       />
                     </View>
@@ -512,7 +612,7 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
                       <Text style={styles.timeSubLabel}>Min</Text>
                       <SimpleTimePicker
                         value={currentEnd.m}
-                        onChange={(m) => handleTimeChange(m, 'minute', 'end')}
+                        onChange={(m) => handleTimeChange(m, "minute", "end")}
                         mode="minute"
                       />
                     </View>
@@ -524,20 +624,28 @@ export default function SleepDiaryScreen({ navigation }: { navigation: any }) {
             {/* Summary */}
             <GlassCard style={styles.summaryBox}>
               <Text style={styles.summaryLabel}>Duración estimada</Text>
-              <Text style={styles.summaryValue}>{estimatedHours ?? '--'} horas</Text>
+              <Text style={styles.summaryValue}>
+                {estimatedHours ?? "--"} horas
+              </Text>
             </GlassCard>
 
             {/* Actions */}
             <View style={styles.modalActions}>
               <Pressable
                 onPress={() => setShowAddModal(false)}
-                style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.cancelButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </Pressable>
               <Pressable
                 onPress={handleSave}
-                style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.saveButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Text style={styles.saveButtonText}>Guardar</Text>
               </Pressable>
@@ -561,15 +669,15 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.55)',
+    borderColor: "rgba(37,99,235,0.55)",
     backgroundColor: palette.primarySoft,
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -587,7 +695,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 12,
   },
   historyCard: {
@@ -607,8 +715,8 @@ const styles = StyleSheet.create({
   verticalBarContainer: {
     width: 80,
     height: 160,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    justifyContent: "flex-end",
+    alignItems: "center",
     paddingBottom: 8,
     borderRadius: 12,
     backgroundColor: palette.surface,
@@ -624,15 +732,15 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 6,
     backgroundColor: palette.panelStrong,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
+    justifyContent: "flex-end",
+    overflow: "hidden",
     marginBottom: 6,
   },
   verticalBarChartSelected: {
     backgroundColor: palette.primarySoft,
   },
   verticalBarFill: {
-    width: '100%',
+    width: "100%",
     borderRadius: 6,
   },
   verticalBarHours: {
@@ -654,7 +762,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   recommendationGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 12,
     gap: 8,
   },
@@ -665,14 +773,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceAlt,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   recommendationLabel: {
     color: palette.textSecondary,
     fontFamily: fonts.bodyBold,
     fontSize: 10,
     marginBottom: 4,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   recommendationValue: {
@@ -691,7 +799,7 @@ const styles = StyleSheet.create({
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
     borderWidth: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 32,
   },
   emptyText: {
@@ -704,21 +812,21 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontFamily: fonts.bodyRegular,
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 16,
   },
   errorText: {
     color: palette.danger,
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     marginHorizontal: 4,
     marginTop: 8,
   },
   addButton: {
     borderRadius: 14,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 13,
     marginTop: 12,
   },
@@ -734,8 +842,8 @@ const styles = StyleSheet.create({
   // MODAL STYLES
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.6)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: palette.surface,
@@ -744,12 +852,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 28,
-    maxHeight: '92%',
+    maxHeight: "92%",
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     marginBottom: 20,
   },
@@ -762,10 +870,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: palette.textSecondary,
     width: 30,
-    textAlign: 'center',
+    textAlign: "center",
   },
   tabsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 16,
     borderBottomWidth: 1,
@@ -777,9 +885,9 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     borderWidth: 0,
     borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
+    borderBottomColor: "transparent",
+    backgroundColor: "transparent",
+    alignItems: "center",
   },
   tabActive: {
     borderBottomColor: palette.primary,
@@ -805,7 +913,7 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 10,
   },
@@ -813,31 +921,31 @@ const styles = StyleSheet.create({
     color: palette.primary,
     fontFamily: fonts.heading,
     fontSize: 40,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
     marginBottom: 16,
   },
   timePickersRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 12,
   },
   timePickerSection: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   timePickerContainer: {
     height: 140,
-    justifyContent: 'center',
+    justifyContent: "center",
     borderRadius: 8,
     borderWidth: 0,
     backgroundColor: palette.surfaceAlt,
   },
   timePickerItem: {
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   timePickerItemText: {
     color: palette.textSecondary,
@@ -857,7 +965,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 10,
     marginBottom: 6,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   timeSeparator: {
@@ -867,11 +975,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   summaryBox: {
-    borderColor: 'rgba(37,99,235,0.45)',
+    borderColor: "rgba(37,99,235,0.45)",
     backgroundColor: palette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 16,
     borderRadius: 10,
     borderWidth: 1,
@@ -880,7 +988,7 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontFamily: fonts.bodyBold,
     fontSize: 10,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   summaryValue: {
@@ -890,9 +998,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   cancelButton: {
     flex: 1,
@@ -900,7 +1008,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.borderSoft,
     paddingVertical: 11,
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: palette.surfaceAlt,
   },
   cancelButtonText: {
@@ -913,7 +1021,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: palette.primary,
     paddingVertical: 11,
-    alignItems: 'center',
+    alignItems: "center",
   },
   saveButtonText: {
     color: palette.white,
@@ -928,13 +1036,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   todayRecordContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
   },
   todayRecordItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   todayRecordDivider: {
     width: 1,
@@ -945,7 +1053,7 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontFamily: fonts.bodyBold,
     fontSize: 10,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 6,
   },

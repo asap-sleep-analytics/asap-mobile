@@ -9,14 +9,14 @@
 // 1. SETUP BÁSICO EN TU COMPONENTE
 // ============================================================================
 
-import { useApneaDetection } from '../hooks/useApneaDetection';
-import ApneaResultCard from '../components/ApneaResultCard';
+import { useApneaDetection } from "../hooks/useApneaDetection";
+import ApneaResultCard from "../components/ApneaResultCard";
 
 export default function MyMonitorScreen() {
   // Inicializar el hook con opciones
   const apnea = useApneaDetection({
-    modo: 'screening', // 'screening' o 'seguimiento'
-    perfil: 'general', // 'general' o 'matias'
+    modo: "screening", // 'screening' o 'seguimiento'
+    perfil: "general", // 'general' o 'matias'
     autoStart: false, // Si true, inicia grabación automáticamente
   });
 
@@ -45,7 +45,7 @@ export default function MyMonitorScreen() {
       <ApneaResultCard result={apnea.result} />
 
       {/* Mostrar errores */}
-      {apnea.error && <Text style={{ color: 'red' }}>{apnea.error}</Text>}
+      {apnea.error && <Text style={{ color: "red" }}>{apnea.error}</Text>}
     </View>
   );
 }
@@ -55,7 +55,7 @@ export default function MyMonitorScreen() {
 // ============================================================================
 
 export function ManualRecordingExample() {
-  const apnea = useApneaDetection({ modo: 'screening' });
+  const apnea = useApneaDetection({ modo: "screening" });
   const [spo2Reading, setSpo2Reading] = useState([95, 94, 93, 91]);
 
   const handleStartRecording = async () => {
@@ -67,7 +67,7 @@ export function ManualRecordingExample() {
       // Pasar valores de SpO2 del oxímetro
       await apnea.stopAndPredict(spo2Reading);
     } catch (err) {
-      console.error('Error durante predicción:', err);
+      console.error("Error durante predicción:", err);
     }
   };
 
@@ -77,25 +77,33 @@ export function ManualRecordingExample() {
 
   return (
     <View>
-      <Pressable onPress={handleStartRecording} disabled={apnea.isRecording || apnea.isProcessing}>
+      <Pressable
+        onPress={handleStartRecording}
+        disabled={apnea.isRecording || apnea.isProcessing}
+      >
         <Text>Iniciar Grabación</Text>
       </Pressable>
 
       {apnea.isRecording && (
         <>
           <Text>Tiempo: {(apnea.elapsedMs / 1000).toFixed(1)}s / 30s</Text>
-          <View style={{ height: 6, backgroundColor: '#E5E7EB', borderRadius: 3 }}>
+          <View
+            style={{ height: 6, backgroundColor: "#E5E7EB", borderRadius: 3 }}
+          >
             <View
               style={{
-                height: '100%',
+                height: "100%",
                 width: `${apnea.progressPercent}%`,
-                backgroundColor: '#3B82F6',
+                backgroundColor: "#3B82F6",
                 borderRadius: 3,
               }}
             />
           </View>
 
-          <Pressable onPress={handleStopAndAnalyze} disabled={apnea.isProcessing}>
+          <Pressable
+            onPress={handleStopAndAnalyze}
+            disabled={apnea.isProcessing}
+          >
             <Text>Analizar Ahora</Text>
           </Pressable>
 
@@ -117,7 +125,7 @@ export function ManualRecordingExample() {
 // ============================================================================
 
 export function PassiveMonitoringExample() {
-  const apnea = useApneaDetection({ modo: 'seguimiento', perfil: 'matias' });
+  const apnea = useApneaDetection({ modo: "seguimiento", perfil: "matias" });
   const [spo2Readings, setSpo2Readings] = useState([]);
   const [predictions, setPredictions] = useState([]);
 
@@ -131,7 +139,7 @@ export function PassiveMonitoringExample() {
         // En una app real, esto vendría del oxímetro conectado
         const recentReadings = spo2Readings.slice(-30); // Últimas 30 lecturas
         if (recentReadings.length === 0) {
-          console.warn('No hay lecturas de SpO2');
+          console.warn("No hay lecturas de SpO2");
           return;
         }
 
@@ -142,16 +150,16 @@ export function PassiveMonitoringExample() {
         setPredictions((prev) => [...prev, result]);
 
         // 4. Opcional: Ejecutar acciones basadas en nivel
-        if (result.nivel === 'CRITICO') {
+        if (result.nivel === "CRITICO") {
           // Trigger alerta severa
-          console.warn('¡Evento crítico detectado!');
+          console.warn("¡Evento crítico detectado!");
           triggerAlert(result);
-        } else if (result.nivel === 'ALERTA') {
+        } else if (result.nivel === "ALERTA") {
           // Notificar usuario discretamente
-          console.log('Evento respiratorio posible');
+          console.log("Evento respiratorio posible");
         }
       } catch (err) {
-        console.error('Error en análisis pasivo:', err);
+        console.error("Error en análisis pasivo:", err);
       }
     };
 
@@ -182,9 +190,18 @@ export function PassiveMonitoringExample() {
 
   return (
     <ScrollView>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Monitoreo Pasivo</Text>
+      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 12 }}>
+        Monitoreo Pasivo
+      </Text>
 
-      <Text>Estado: {apnea.isRecording ? 'Grabando' : apnea.isProcessing ? 'Procesando' : 'En espera'}</Text>
+      <Text>
+        Estado:{" "}
+        {apnea.isRecording
+          ? "Grabando"
+          : apnea.isProcessing
+            ? "Procesando"
+            : "En espera"}
+      </Text>
       <Text>Predicciones: {predictions.length}</Text>
 
       {predictions.map((pred, idx) => (
@@ -203,8 +220,8 @@ export function PassiveMonitoringExample() {
  */
 export function IntegrationInMonitorActiveScreen() {
   const apnea = useApneaDetection({
-    modo: 'seguimiento',
-    perfil: 'general',
+    modo: "seguimiento",
+    perfil: "general",
   });
   const [spo2Values, setSpo2Values] = useState([95, 94, 93, 91]);
   const [analysisResults, setAnalysisResults] = useState([]);
@@ -233,7 +250,7 @@ export function IntegrationInMonitorActiveScreen() {
             analyzeCurrentSegment();
           }, 30000);
         } catch (err) {
-          console.error('Error en análisis:', err);
+          console.error("Error en análisis:", err);
         }
       }
     };
@@ -255,7 +272,9 @@ export function IntegrationInMonitorActiveScreen() {
       {/* Mostrar últimas predicciones */}
       {analysisResults.length > 0 && (
         <View>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>Últimas Predicciones</Text>
+          <Text style={{ fontSize: 16, fontWeight: "bold", marginBottom: 8 }}>
+            Últimas Predicciones
+          </Text>
           {analysisResults.slice(-3).map((result, idx) => (
             <ApneaResultCard key={idx} result={result} />
           ))}
@@ -345,10 +364,12 @@ export function IntegrationInMonitorActiveScreen() {
  * - Esperar que funcione sin permisos de micrófono
  */
 
-export default function GuideComponent() {
+export function GuideComponent() {
   return (
     <View>
-      <Text>Ver el código de este archivo para ejemplos completos de integración</Text>
+      <Text>
+        Ver el código de este archivo para ejemplos completos de integración
+      </Text>
     </View>
   );
 }

@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import GlassCard from './GlassCard';
-import { fonts, palette } from '../theme/tokens';
+import GlassCard from "./GlassCard";
+import { fonts, palette } from "../theme/tokens";
 
 type EmptyStateProps = {
   message: string;
@@ -18,7 +18,7 @@ export default function EmptyState({ message }: EmptyStateProps) {
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 26,
   },
   text: {
@@ -26,6 +26,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyRegular,
     fontSize: 14,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

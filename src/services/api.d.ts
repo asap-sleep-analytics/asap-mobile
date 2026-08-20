@@ -1,5 +1,11 @@
-import type { AxiosInstance } from 'axios';
-import type { AuthResponse, DetectionLog, SleepContinuityPoint, SleepSessionRecord, SleepSessionStartPayload } from '../types';
+import type { AxiosInstance } from "axios";
+import type {
+  AuthResponse,
+  DetectionLog,
+  SleepContinuityPoint,
+  SleepSessionRecord,
+  SleepSessionStartPayload,
+} from "../types";
 
 export interface AudioFileSource {
   uri: string;
@@ -22,7 +28,7 @@ export interface ApneaPredictionFromFilePayload {
 }
 
 export interface ApneaPredictionResult {
-  nivel: 'NORMAL' | 'ALERTA' | 'CRITICO';
+  nivel: "NORMAL" | "ALERTA" | "CRITICO";
   interpretacion: string;
   probabilidad: number;
   detalle: {
@@ -40,7 +46,11 @@ export interface ApneaPredictionResult {
 export interface DashboardSummaryResponse {
   indicadores?: {
     sleep_score?: number;
-    eventos_apnea_ronquido?: { ronquidos: number; apnea: number; total: number };
+    eventos_apnea_ronquido?: {
+      ronquidos: number;
+      apnea: number;
+      total: number;
+    };
     continuidad?: SleepContinuityPoint[];
   };
   disclaimer_medico?: string;
@@ -57,20 +67,61 @@ export interface UserProfile {
   riesgo_apnea_predicho?: string;
   apnea_risk?: string;
   acepta_consentimiento_datos?: boolean;
+  email_verificado?: boolean;
   creado_en: string;
+}
+
+export interface StoredSessionData {
+  token: string;
+  user: UserProfile | null;
+  expiresAt: number;
 }
 
 export function isAuthenticated(): boolean;
 export function getApiErrorMessage(error: unknown, fallback?: string): string;
 export function setAuthToken(token: string): void;
 export function clearAuthToken(): void;
+export function clearStoredSession(): Promise<void>;
+export function saveStoredSession(data: StoredSessionData): Promise<void>;
+export function getStoredSession(): Promise<StoredSessionData>;
+export function subscribeTokenRefresh(
+  handler: (token: string, user: UserProfile | null) => void,
+): () => void;
+export function refreshSession(): Promise<{
+  token: string;
+  expiresIn: number;
+  user: UserProfile | null;
+}>;
 export function analyzeAudioMetadata(payload: unknown): Promise<unknown>;
-export function registerUser(payload: Record<string, unknown>): Promise<AuthResponse>;
-export function loginUser(payload: Record<string, unknown>): Promise<AuthResponse>;
+export function registerUser(
+  payload: Record<string, unknown>,
+): Promise<AuthResponse>;
+export function loginUser(
+  payload: Record<string, unknown>,
+): Promise<AuthResponse>;
+export function socialLoginUser(
+  payload: Record<string, unknown>,
+): Promise<AuthResponse>;
 export function getProfile(): Promise<UserProfile>;
+export interface MessageResponse {
+  ok: boolean;
+  mensaje: string;
+  verificacion_url_preview?: string;
+}
+
+export function sendEmailVerification(): Promise<MessageResponse>;
+export function forgotPassword(email: string): Promise<MessageResponse>;
+export function resetPassword(
+  token: string,
+  nuevaPassword: string,
+): Promise<MessageResponse>;
+
+export function deleteMyAccount(): Promise<{ status: number }>;
 export function getDashboardSummary(): Promise<DashboardSummaryResponse>;
 export function calibrateSleep(ambientNoiseLevel: number): Promise<unknown>;
-export function startSleepSession(payload?: SleepSessionStartPayload): Promise<{ sesion: { session_id: string } }>;
+export function startSleepSession(
+  payload?: SleepSessionStartPayload,
+): Promise<{ sesion: { session_id: string } }>;
 export function uploadSleepFragment(params: {
   sessionId: string;
   fileUri: string;
@@ -78,12 +129,32 @@ export function uploadSleepFragment(params: {
   durationSeconds?: number;
   startedAt?: string;
 }): Promise<unknown>;
-export function finishSleepSession(sessionId: string, payload?: Record<string, unknown>): Promise<unknown>;
-export function listSleepSessions(limit?: number): Promise<SleepSessionRecord[]>;
-export function listSleepDetections(sessionId: string, limit?: number): Promise<DetectionLog[]>;
-export function submitSleepFeedback(sessionId: string, payload: Record<string, unknown>): Promise<unknown>;
-export function predictApnea(params: ApneaPredictionPayload): Promise<ApneaPredictionResult>;
-export function predictApneaFromFile(params: ApneaPredictionFromFilePayload): Promise<ApneaPredictionResult>;
+export function finishSleepSession(
+  sessionId: string,
+  payload?: Record<string, unknown>,
+): Promise<unknown>;
+export function listSleepSessions(
+  limit?: number,
+): Promise<SleepSessionRecord[]>;
+export function listSleepDetections(
+  sessionId: string,
+  limit?: number,
+  cursor?: string,
+): Promise<{
+  items: DetectionLog[];
+  next_cursor: string | null;
+  has_more: boolean;
+}>;
+export function submitSleepFeedback(
+  sessionId: string,
+  payload: Record<string, unknown>,
+): Promise<unknown>;
+export function predictApnea(
+  params: ApneaPredictionPayload,
+): Promise<ApneaPredictionResult>;
+export function predictApneaFromFile(
+  params: ApneaPredictionFromFilePayload,
+): Promise<ApneaPredictionResult>;
 
 declare const api: AxiosInstance;
 export default api;

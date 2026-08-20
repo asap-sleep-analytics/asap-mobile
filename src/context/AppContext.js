@@ -1,30 +1,33 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { clearAuthToken, getProfile, setAuthToken } from '../services/api';
+import {
+  clearStoredSession,
+  getProfile,
+  getStoredSession,
+  refreshSession,
+  saveStoredSession,
+  setAuthToken,
+  subscribeTokenRefresh,
+} from "../services/api";
 
-const TOKEN_KEY = 'asap.auth.token';
-const USER_KEY = 'asap.auth.user';
-const EXPIRES_AT_KEY = 'asap.auth.expiresAt';
 const DEFAULT_SESSION_SECONDS = 60 * 60 * 24 * 7;
-const RENEW_THRESHOLD_MS = 60 * 60 * 1000;
-
-async function clearStoredSession() {
-  await Promise.all([
-    SecureStore.deleteItemAsync(TOKEN_KEY),
-    SecureStore.deleteItemAsync(USER_KEY),
-    SecureStore.deleteItemAsync(EXPIRES_AT_KEY),
-  ]);
-}
+const PROACTIVE_REFRESH_BEFORE_MS = 2 * 60 * 1000;
 
 export const AppContext = createContext({
   lastResult: null,
   setLastResult: () => {},
   authLoading: true,
   isAuthenticated: false,
-  authToken: '',
+  authToken: "",
   user: null,
-  activeSleepSessionId: '',
+  activeSleepSessionId: "",
   signIn: async () => {},
   signOut: () => {},
   setActiveSleepSessionId: () => {},
@@ -33,71 +36,116 @@ export const AppContext = createContext({
 export function AppProvider({ children }) {
   const [lastResult, setLastResult] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [authTokenState, setAuthTokenState] = useState('');
+  const [authTokenState, setAuthTokenState] = useState("");
   const [user, setUser] = useState(null);
-  const [activeSleepSessionId, setActiveSleepSessionId] = useState('');
-
-  const signIn = useCallback(async (token, userPayload, expiresInSeconds = DEFAULT_SESSION_SECONDS) => {
-    const safeSeconds = Number.isFinite(Number(expiresInSeconds))
-      ? Math.max(Number(expiresInSeconds), 1)
-      : DEFAULT_SESSION_SECONDS;
-    const expiresAt = Date.now() + safeSeconds * 1000;
-
-    setAuthToken(token);
-    setAuthTokenState(token);
-    setUser(userPayload);
-
-    await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, token),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(userPayload || null)),
-      SecureStore.setItemAsync(EXPIRES_AT_KEY, String(expiresAt)),
-    ]);
-  }, []);
+  const [activeSleepSessionId, setActiveSleepSessionId] = useState("");
+  const refreshTimer = useRef(null);
 
   const signOut = useCallback(async () => {
-    clearAuthToken();
-    setAuthTokenState('');
+    if (refreshTimer.current) {
+      clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    setAuthToken("");
+    setAuthTokenState("");
     setUser(null);
-    setActiveSleepSessionId('');
+    setActiveSleepSessionId("");
     await clearStoredSession();
   }, []);
+
+  const scheduleProactiveRefresh = useCallback(
+    (expiresInSeconds) => {
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
+
+      const delayMs = Math.max(
+        Number(expiresInSeconds) * 1000 - PROACTIVE_REFRESH_BEFORE_MS,
+        1000,
+      );
+      refreshTimer.current = setTimeout(async () => {
+        try {
+          const result = await refreshSession();
+          if (result?.token) {
+            setAuthTokenState(result.token);
+            if (result.user) {
+              setUser(result.user);
+            }
+            scheduleProactiveRefresh(result.expiresIn);
+          }
+        } catch {
+          signOut();
+        }
+      }, delayMs);
+    },
+    [refreshSession, signOut],
+  );
+
+  useEffect(() => {
+    const unsubscribe = subscribeTokenRefresh((token) => {
+      if (!token) {
+        if (refreshTimer.current) {
+          clearTimeout(refreshTimer.current);
+          refreshTimer.current = null;
+        }
+        setAuthTokenState("");
+        setUser(null);
+        return;
+      }
+
+      getStoredSession().then((stored) => {
+        if (stored.user) {
+          setUser(stored.user);
+        }
+        const remainingMs = Math.max(stored.expiresAt - Date.now(), 0);
+        scheduleProactiveRefresh(remainingMs / 1000);
+      });
+    });
+
+    return unsubscribe;
+  }, [scheduleProactiveRefresh]);
+
+  const signIn = useCallback(
+    async (token, userPayload, expiresInSeconds = DEFAULT_SESSION_SECONDS) => {
+      const safeSeconds = Number.isFinite(Number(expiresInSeconds))
+        ? Math.max(Number(expiresInSeconds), 1)
+        : DEFAULT_SESSION_SECONDS;
+      const expiresAt = Date.now() + safeSeconds * 1000;
+
+      setAuthToken(token);
+      setAuthTokenState(token);
+      setUser(userPayload || null);
+
+      await saveStoredSession({ token, user: userPayload || null, expiresAt });
+      scheduleProactiveRefresh(safeSeconds);
+    },
+    [scheduleProactiveRefresh],
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     const bootstrapSession = async () => {
       try {
-        const [storedToken, storedUser, storedExpiresAt] = await Promise.all([
-          SecureStore.getItemAsync(TOKEN_KEY),
-          SecureStore.getItemAsync(USER_KEY),
-          SecureStore.getItemAsync(EXPIRES_AT_KEY),
-        ]);
+        const stored = await getStoredSession();
 
-        if (!storedToken || !storedExpiresAt) {
+        if (
+          !stored.token ||
+          !stored.expiresAt ||
+          stored.expiresAt <= Date.now()
+        ) {
           await clearStoredSession();
           return;
         }
 
-        const expiresAt = Number(storedExpiresAt);
-        if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-          await clearStoredSession();
-          return;
-        }
-
-        setAuthToken(storedToken);
+        setAuthToken(stored.token);
         if (isMounted) {
-          setAuthTokenState(storedToken);
+          setAuthTokenState(stored.token);
         }
 
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser);
-            if (isMounted && parsedUser) {
-              setUser(parsedUser);
-            }
-          } catch {
-            // Si el JSON de usuario está corrupto, lo reemplazamos con perfil remoto.
-          }
+        if (stored.user && isMounted) {
+          setUser(stored.user);
         }
 
         const profile = await getProfile();
@@ -106,11 +154,20 @@ export function AppProvider({ children }) {
         }
 
         setUser(profile);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(profile));
+        const expiresAt =
+          stored.expiresAt > Date.now() ? stored.expiresAt : Date.now() + 1000;
+        await saveStoredSession({
+          token: stored.token,
+          user: profile,
+          expiresAt,
+        });
+
+        const remainingMs = Math.max(expiresAt - Date.now(), 0);
+        scheduleProactiveRefresh(remainingMs / 1000);
       } catch {
-        clearAuthToken();
         if (isMounted) {
-          setAuthTokenState('');
+          setAuthToken("");
+          setAuthTokenState("");
           setUser(null);
         }
         await clearStoredSession();
@@ -125,7 +182,12 @@ export function AppProvider({ children }) {
 
     return () => {
       isMounted = false;
+      if (refreshTimer.current) {
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = null;
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const isAuthenticated = Boolean(authTokenState && user);
@@ -143,7 +205,16 @@ export function AppProvider({ children }) {
       signOut,
       setActiveSleepSessionId,
     }),
-    [lastResult, authLoading, isAuthenticated, authTokenState, user, activeSleepSessionId, signIn, signOut],
+    [
+      lastResult,
+      authLoading,
+      isAuthenticated,
+      authTokenState,
+      user,
+      activeSleepSessionId,
+      signIn,
+      signOut,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

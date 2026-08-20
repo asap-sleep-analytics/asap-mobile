@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -9,17 +9,17 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import * as Contacts from 'expo-contacts';
+} from "react-native";
+import * as Contacts from "expo-contacts";
 
-import AmbientBackdrop from '../../../components/AmbientBackdrop';
-import GlassCard from '../../../components/GlassCard';
+import AmbientBackdrop from "../../../components/AmbientBackdrop";
+import GlassCard from "../../../components/GlassCard";
 import {
   getEmergencyAlertSettings,
   saveEmergencyAlertSettings,
-} from '../../../services/localHealth';
-import type { EmergencyAlertSettings, EmergencyContact } from '../../../types';
-import { fonts, palette } from '../../../theme/tokens';
+} from "../../../services/localHealth";
+import type { EmergencyAlertSettings, EmergencyContact } from "../../../types";
+import { fonts, palette } from "../../../theme/tokens";
 
 interface ContactPickerItem {
   id: string;
@@ -33,16 +33,22 @@ interface ContactPickerItem {
 
 const THRESHOLD_OPTIONS = [6, 8, 10, 12] as const;
 
-export default function EmergencyAlertsScreen({ navigation }: { navigation: any }) {
+export default function EmergencyAlertsScreen({
+  navigation,
+}: {
+  navigation: any;
+}) {
   const [settings, setSettings] = useState<EmergencyAlertSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [contactsPickerVisible, setContactsPickerVisible] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
-  const [availableContacts, setAvailableContacts] = useState<ContactPickerItem[]>([]);
+  const [availableContacts, setAvailableContacts] = useState<
+    ContactPickerItem[]
+  >([]);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
-  const [contactSearch, setContactSearch] = useState('');
+  const [contactSearch, setContactSearch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -54,7 +60,10 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     load();
   }, []);
 
-  const updateMethod = (methodKey: keyof EmergencyAlertSettings['methods'], value: boolean) => {
+  const updateMethod = (
+    methodKey: keyof EmergencyAlertSettings["methods"],
+    value: boolean,
+  ) => {
     setSettings((prev) => {
       if (!prev) {
         return prev;
@@ -75,13 +84,13 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     }
 
     setSaving(true);
-    setError('');
+    setError("");
     try {
       const updated = await saveEmergencyAlertSettings(settings);
       setSettings(updated);
       navigation?.goBack?.();
     } catch {
-      setError('No fue posible guardar la configuración de alertas.');
+      setError("No fue posible guardar la configuración de alertas.");
     } finally {
       setSaving(false);
     }
@@ -97,88 +106,122 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
   };
 
   const normalizeContact = (contact: RawContact): ContactPickerItem => {
-    const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(' ').trim();
-    const displayName = contact.name || fullName || 'Contacto sin nombre';
-    const phone = contact.phoneNumbers?.[0]?.number || '';
-    const email = contact.emails?.[0]?.email || '';
+    const fullName = [contact.firstName, contact.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const displayName = contact.name || fullName || "Contacto sin nombre";
+    const phone = contact.phoneNumbers?.[0]?.number || "";
+    const email = contact.emails?.[0]?.email || "";
 
     return {
-      id: contact.id || '',
+      id: contact.id || "",
       name: displayName,
       phone,
       email,
       initials: displayName
-        .split(' ')
+        .split(" ")
         .filter(Boolean)
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase())
-        .join(''),
+        .join(""),
     };
   };
 
-    const contactKey = (contact: ContactPickerItem | EmergencyContact) => String(contact?.id || contact?.phone || contact?.email || contact?.name || '').trim().toLowerCase();
+  const contactKey = (contact: ContactPickerItem | EmergencyContact) =>
+    String(
+      contact?.id || contact?.phone || contact?.email || contact?.name || "",
+    )
+      .trim()
+      .toLowerCase();
 
-    const resolveSavedContact = (savedContact: EmergencyContact): ContactPickerItem => {
-      if (!savedContact) {
-        return savedContact as ContactPickerItem;
+  const resolveSavedContact = (
+    savedContact: EmergencyContact,
+  ): ContactPickerItem => {
+    if (!savedContact) {
+      return savedContact as ContactPickerItem;
+    }
+
+    const match = availableContacts.find((contact) => {
+      if (savedContact.id && contact.id === savedContact.id) {
+        return true;
       }
 
-      const match = availableContacts.find((contact) => {
-        if (savedContact.id && contact.id === savedContact.id) {
-          return true;
-        }
+      if (
+        savedContact.phone &&
+        contact.phone &&
+        contact.phone === savedContact.phone
+      ) {
+        return true;
+      }
 
-        if (savedContact.phone && contact.phone && contact.phone === savedContact.phone) {
-          return true;
-        }
+      if (
+        savedContact.email &&
+        contact.email &&
+        contact.email === savedContact.email
+      ) {
+        return true;
+      }
 
-        if (savedContact.email && contact.email && contact.email === savedContact.email) {
-          return true;
-        }
+      return contactKey(contact) === contactKey(savedContact);
+    });
 
-        return contactKey(contact) === contactKey(savedContact);
-      });
+    return match ? { ...savedContact, ...match } : savedContact;
+  };
 
-      return match ? { ...savedContact, ...match } : savedContact;
-    };
-
-    const selectedSavedContacts = useMemo(
-      () => (Array.isArray(settings?.contacts) ? settings.contacts.map(resolveSavedContact) : []),
-      [settings?.contacts, availableContacts],
-    );
+  const selectedSavedContacts = useMemo(
+    () =>
+      Array.isArray(settings?.contacts)
+        ? settings.contacts.map(resolveSavedContact)
+        : [],
+    [settings?.contacts, availableContacts],
+  );
 
   const openContactsPicker = async () => {
     setLoadingContacts(true);
-    setError('');
+    setError("");
 
-      try {
-        const permissions = await Contacts.requestPermissionsAsync();
-        if (permissions.status !== 'granted') {
-          setError('No se otorgaron permisos de contactos.');
-          return;
-        }
-
-        const response = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.Name, Contacts.Fields.FirstName, Contacts.Fields.LastName, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
-          pageSize: 250,
-        });
-
-        const normalized = (response?.data || [])
-          .map(normalizeContact)
-          .filter((contact) => contact.phone || contact.email)
-          .filter((contact, index, array) => array.findIndex((item) => item.id === contact.id) === index)
-          .sort((left, right) => left.name.localeCompare(right.name, 'es'));
-
-        setAvailableContacts(normalized);
-        setSelectedContactIds(
-          normalized
-            .filter((contact) => selectedSavedContacts.some((saved) => contactKey(saved) === contactKey(contact)))
-            .map((contact) => contact.id),
-        );
-        setContactsPickerVisible(true);
-      } finally {
-        setLoadingContacts(false);
+    try {
+      const permissions = await Contacts.requestPermissionsAsync();
+      if (permissions.status !== "granted") {
+        setError("No se otorgaron permisos de contactos.");
+        return;
       }
+
+      const response = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+        ],
+        pageSize: 250,
+      });
+
+      const normalized = (response?.data || [])
+        .map(normalizeContact)
+        .filter((contact) => contact.phone || contact.email)
+        .filter(
+          (contact, index, array) =>
+            array.findIndex((item) => item.id === contact.id) === index,
+        )
+        .sort((left, right) => left.name.localeCompare(right.name, "es"));
+
+      setAvailableContacts(normalized);
+      setSelectedContactIds(
+        normalized
+          .filter((contact) =>
+            selectedSavedContacts.some(
+              (saved) => contactKey(saved) === contactKey(contact),
+            ),
+          )
+          .map((contact) => contact.id),
+      );
+      setContactsPickerVisible(true);
+    } finally {
+      setLoadingContacts(false);
+    }
   };
 
   const filteredContacts = useMemo(() => {
@@ -188,13 +231,16 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     }
 
     return availableContacts.filter((contact) => {
-      const haystack = `${contact.name} ${contact.phone} ${contact.email}`.toLowerCase();
+      const haystack =
+        `${contact.name} ${contact.phone} ${contact.email}`.toLowerCase();
       return haystack.includes(query);
     });
   }, [availableContacts, contactSearch]);
 
   const saveSelectedContacts = () => {
-    const selectedRows = availableContacts.filter((contact) => selectedContactIds.includes(contact.id));
+    const selectedRows = availableContacts.filter((contact) =>
+      selectedContactIds.includes(contact.id),
+    );
 
     setSettings((prev) => {
       if (!prev) {
@@ -220,14 +266,18 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
     setSelectedContactIds([]);
   };
 
-  const removeContact = (contactToRemove: ContactPickerItem | EmergencyContact) => {
+  const removeContact = (
+    contactToRemove: ContactPickerItem | EmergencyContact,
+  ) => {
     setSettings((prev) => {
       if (!prev) {
         return prev;
       }
       return {
         ...prev,
-        contacts: prev.contacts.filter((row) => contactKey(row) !== contactKey(contactToRemove)),
+        contacts: prev.contacts.filter(
+          (row) => contactKey(row) !== contactKey(contactToRemove),
+        ),
       };
     });
   };
@@ -237,7 +287,9 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
       <AmbientBackdrop>
         <View style={styles.loaderWrap}>
           <ActivityIndicator color={palette.mint} />
-          <Text style={styles.loaderText}>Cargando alertas de emergencia...</Text>
+          <Text style={styles.loaderText}>
+            Cargando alertas de emergencia...
+          </Text>
         </View>
       </AmbientBackdrop>
     );
@@ -248,12 +300,22 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.badge}>Seguridad</Text>
         <Text style={styles.title}>Alertas de apnea severa</Text>
-        <Text style={styles.subtitle}>Configura cómo avisar y a quién contactar si detectamos un caso crítico.</Text>
+        <Text style={styles.subtitle}>
+          Configura cómo avisar y a quién contactar si detectamos un caso
+          crítico.
+        </Text>
 
         <GlassCard>
           <View style={styles.rowBetween}>
             <Text style={styles.label}>Sistema de alertas</Text>
-            <Switch value={settings.enabled} onValueChange={(value) => setSettings((prev) => (prev ? { ...prev, enabled: value } : prev))} />
+            <Switch
+              value={settings.enabled}
+              onValueChange={(value) =>
+                setSettings((prev) =>
+                  prev ? { ...prev, enabled: value } : prev,
+                )
+              }
+            />
           </View>
 
           <Text style={styles.sectionTitle}>Umbral de severidad</Text>
@@ -263,10 +325,25 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
               return (
                 <Pressable
                   key={`threshold-${value}`}
-                  onPress={() => setSettings((prev) => (prev ? { ...prev, severe_threshold_events: value } : prev))}
-                  style={({ pressed }) => [styles.chip, selected ? styles.chipSelected : null, pressed ? styles.pressed : null]}
+                  onPress={() =>
+                    setSettings((prev) =>
+                      prev ? { ...prev, severe_threshold_events: value } : prev,
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.chip,
+                    selected ? styles.chipSelected : null,
+                    pressed ? styles.pressed : null,
+                  ]}
                 >
-                  <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{value} eventos</Text>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selected ? styles.chipTextSelected : null,
+                    ]}
+                  >
+                    {value} eventos
+                  </Text>
                 </Pressable>
               );
             })}
@@ -275,44 +352,128 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
 
         <GlassCard>
           <Text style={styles.sectionTitle}>Canales de alerta</Text>
-          <View style={styles.optionRow}><Text style={styles.optionText}>Notificación local</Text><Switch value={!!settings.methods.notification} onValueChange={(v) => updateMethod('notification', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>Vibrar / intentar despertar</Text><Switch value={!!settings.methods.wake_alarm} onValueChange={(v) => updateMethod('wake_alarm', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>WhatsApp</Text><Switch value={!!settings.methods.whatsapp} onValueChange={(v) => updateMethod('whatsapp', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>SMS</Text><Switch value={!!settings.methods.sms} onValueChange={(v) => updateMethod('sms', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>Correo</Text><Switch value={!!settings.methods.email} onValueChange={(v) => updateMethod('email', v)} /></View>
-          <View style={styles.optionRow}><Text style={styles.optionText}>Auto envío sin confirmar</Text><Switch value={!!settings.auto_dispatch} onValueChange={(v) => setSettings((prev) => (prev ? { ...prev, auto_dispatch: v } : prev))} /></View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>Notificación local</Text>
+            <Switch
+              value={!!settings.methods.notification}
+              onValueChange={(v) => updateMethod("notification", v)}
+            />
+          </View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>Vibrar / intentar despertar</Text>
+            <Switch
+              value={!!settings.methods.wake_alarm}
+              onValueChange={(v) => updateMethod("wake_alarm", v)}
+            />
+          </View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>WhatsApp</Text>
+            <Switch
+              value={!!settings.methods.whatsapp}
+              onValueChange={(v) => updateMethod("whatsapp", v)}
+            />
+          </View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>SMS</Text>
+            <Switch
+              value={!!settings.methods.sms}
+              onValueChange={(v) => updateMethod("sms", v)}
+            />
+          </View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>Correo</Text>
+            <Switch
+              value={!!settings.methods.email}
+              onValueChange={(v) => updateMethod("email", v)}
+            />
+          </View>
+          <View style={styles.optionRow}>
+            <Text style={styles.optionText}>Auto envío sin confirmar</Text>
+            <Switch
+              value={!!settings.auto_dispatch}
+              onValueChange={(v) =>
+                setSettings((prev) =>
+                  prev ? { ...prev, auto_dispatch: v } : prev,
+                )
+              }
+            />
+          </View>
         </GlassCard>
 
         <GlassCard>
           <Text style={styles.sectionTitle}>Contactos predeterminados</Text>
-          <Pressable onPress={openContactsPicker} style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null]}>
-            <Text style={styles.primaryButtonText}>{loadingContacts ? 'Cargando contactos...' : 'Elegir contactos de mi agenda'}</Text>
+          <Pressable
+            onPress={openContactsPicker}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loadingContacts
+                ? "Cargando contactos..."
+                : "Elegir contactos de mi agenda"}
+            </Text>
           </Pressable>
 
           {selectedSavedContacts.map((contact, index) => (
-            <View key={`selected-${contactKey(contact) || index}`} style={styles.contactRow}>
-              <View style={styles.contactAvatar}><Text style={styles.contactAvatarText}>{(contact.initials || contact.name?.[0] || '?').toUpperCase()}</Text></View>
+            <View
+              key={`selected-${contactKey(contact) || index}`}
+              style={styles.contactRow}
+            >
+              <View style={styles.contactAvatar}>
+                <Text style={styles.contactAvatarText}>
+                  {(contact.initials || contact.name?.[0] || "?").toUpperCase()}
+                </Text>
+              </View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactMeta}>{contact.phone || contact.email || 'Contacto guardado'}</Text>
+                <Text style={styles.contactMeta}>
+                  {contact.phone || contact.email || "Contacto guardado"}
+                </Text>
               </View>
-              <Pressable onPress={() => removeContact(contact)} style={styles.removeButton}><Text style={styles.removeButtonText}>Quitar</Text></Pressable>
+              <Pressable
+                onPress={() => removeContact(contact)}
+                style={styles.removeButton}
+              >
+                <Text style={styles.removeButtonText}>Quitar</Text>
+              </Pressable>
             </View>
           ))}
         </GlassCard>
 
-        <Pressable onPress={save} disabled={saving} style={({ pressed }) => [styles.saveButton, pressed ? styles.pressed : null, saving ? styles.disabled : null]}>
-          {saving ? <ActivityIndicator color="#03110C" /> : <Text style={styles.saveButtonText}>Guardar configuración</Text>}
+        <Pressable
+          onPress={save}
+          disabled={saving}
+          style={({ pressed }) => [
+            styles.saveButton,
+            pressed ? styles.pressed : null,
+            saving ? styles.disabled : null,
+          ]}
+        >
+          {saving ? (
+            <ActivityIndicator color="#03110C" />
+          ) : (
+            <Text style={styles.saveButtonText}>Guardar configuración</Text>
+          )}
         </Pressable>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
-      <Modal visible={contactsPickerVisible} transparent animationType="fade" onRequestClose={() => setContactsPickerVisible(false)}>
+      <Modal
+        visible={contactsPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContactsPickerVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Selecciona contactos</Text>
-            <Text style={styles.modalSubtitle}>Elige uno o varios contactos de tu agenda para tus alertas de emergencia.</Text>
+            <Text style={styles.modalSubtitle}>
+              Elige uno o varios contactos de tu agenda para tus alertas de
+              emergencia.
+            </Text>
 
             <TextInput
               value={contactSearch}
@@ -322,7 +483,10 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
               style={styles.searchInput}
             />
 
-            <ScrollView style={styles.contactList} contentContainerStyle={styles.contactListContent}>
+            <ScrollView
+              style={styles.contactList}
+              contentContainerStyle={styles.contactListContent}
+            >
               {filteredContacts.map((contact) => {
                 const selected = selectedContactIds.includes(contact.id);
 
@@ -330,35 +494,71 @@ export default function EmergencyAlertsScreen({ navigation }: { navigation: any 
                   <Pressable
                     key={`picker-${contact.id}`}
                     onPress={() => {
-                      setSelectedContactIds((prev) => (
+                      setSelectedContactIds((prev) =>
                         prev.includes(contact.id)
                           ? prev.filter((id) => id !== contact.id)
-                          : [...prev, contact.id]
-                      ));
+                          : [...prev, contact.id],
+                      );
                     }}
-                    style={({ pressed }) => [styles.pickRow, selected ? styles.pickRowSelected : null, pressed ? styles.pressed : null]}
+                    style={({ pressed }) => [
+                      styles.pickRow,
+                      selected ? styles.pickRowSelected : null,
+                      pressed ? styles.pressed : null,
+                    ]}
                   >
-                    <View style={styles.contactAvatar}><Text style={styles.contactAvatarText}>{(contact.initials || contact.name?.[0] || '?').toUpperCase()}</Text></View>
+                    <View style={styles.contactAvatar}>
+                      <Text style={styles.contactAvatarText}>
+                        {(
+                          contact.initials ||
+                          contact.name?.[0] ||
+                          "?"
+                        ).toUpperCase()}
+                      </Text>
+                    </View>
                     <View style={styles.pickInfo}>
                       <Text style={styles.pickName}>{contact.name}</Text>
-                      <Text style={styles.pickMeta}>{contact.phone || contact.email || 'Sin teléfono ni correo'}</Text>
+                      <Text style={styles.pickMeta}>
+                        {contact.phone ||
+                          contact.email ||
+                          "Sin teléfono ni correo"}
+                      </Text>
                     </View>
-                    <View style={[styles.pickCheckbox, selected ? styles.pickCheckboxSelected : null]}>
-                      <Text style={styles.pickCheckboxText}>{selected ? '✓' : ''}</Text>
+                    <View
+                      style={[
+                        styles.pickCheckbox,
+                        selected ? styles.pickCheckboxSelected : null,
+                      ]}
+                    >
+                      <Text style={styles.pickCheckboxText}>
+                        {selected ? "✓" : ""}
+                      </Text>
                     </View>
                   </Pressable>
                 );
               })}
 
-              {filteredContacts.length === 0 ? <Text style={styles.emptyContactsText}>No encontramos contactos con ese filtro.</Text> : null}
+              {filteredContacts.length === 0 ? (
+                <Text style={styles.emptyContactsText}>
+                  No encontramos contactos con ese filtro.
+                </Text>
+              ) : null}
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <Pressable style={styles.modalGhost} onPress={() => setContactsPickerVisible(false)}>
+              <Pressable
+                style={styles.modalGhost}
+                onPress={() => setContactsPickerVisible(false)}
+              >
                 <Text style={styles.modalGhostText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.modalPrimary} onPress={saveSelectedContacts} disabled={selectedContactIds.length === 0}>
-                <Text style={styles.modalPrimaryText}>Agregar ({selectedContactIds.length})</Text>
+              <Pressable
+                style={styles.modalPrimary}
+                onPress={saveSelectedContacts}
+                disabled={selectedContactIds.length === 0}
+              >
+                <Text style={styles.modalPrimaryText}>
+                  Agregar ({selectedContactIds.length})
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -377,8 +577,8 @@ const styles = StyleSheet.create({
   },
   loaderWrap: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loaderText: {
     marginTop: 8,
@@ -386,15 +586,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
   },
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.45)',
+    borderColor: "rgba(220,38,38,0.45)",
     backgroundColor: palette.dangerSoft,
     color: palette.danger,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -413,9 +613,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   label: {
     color: palette.textPrimary,
@@ -427,13 +627,13 @@ const styles = StyleSheet.create({
     color: palette.primary,
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   chipsWrap: {
     marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   chip: {
@@ -445,7 +645,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   chipSelected: {
-    borderColor: 'rgba(220,38,38,0.7)',
+    borderColor: "rgba(220,38,38,0.7)",
     backgroundColor: palette.dangerSoft,
   },
   chipText: {
@@ -459,9 +659,9 @@ const styles = StyleSheet.create({
   },
   optionRow: {
     marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   optionText: {
     color: palette.textSecondary,
@@ -471,9 +671,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.55)',
+    borderColor: "rgba(37,99,235,0.55)",
     backgroundColor: palette.primarySoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   primaryButtonText: {
@@ -489,19 +689,19 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   contactAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.45)',
+    borderColor: "rgba(37,99,235,0.45)",
     backgroundColor: palette.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 10,
   },
   contactAvatarText: {
@@ -526,7 +726,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.5)',
+    borderColor: "rgba(220,38,38,0.5)",
     backgroundColor: palette.dangerSoft,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -554,7 +754,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     borderRadius: 14,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 13,
   },
   saveButtonText: {
@@ -574,8 +774,8 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.6)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(15,23,42,0.6)",
+    justifyContent: "flex-end",
   },
   modalCard: {
     borderTopLeftRadius: 18,
@@ -584,7 +784,7 @@ const styles = StyleSheet.create({
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
     padding: 16,
-    maxHeight: '88%',
+    maxHeight: "88%",
   },
   modalTitle: {
     color: palette.textPrimary,
@@ -621,11 +821,11 @@ const styles = StyleSheet.create({
     borderColor: palette.borderSoft,
     backgroundColor: palette.surface,
     padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   pickRowSelected: {
-    borderColor: 'rgba(37,99,235,0.6)',
+    borderColor: "rgba(37,99,235,0.6)",
     backgroundColor: palette.primarySoft,
   },
   pickInfo: {
@@ -648,11 +848,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   pickCheckboxSelected: {
-    borderColor: 'rgba(37,99,235,0.7)',
+    borderColor: "rgba(37,99,235,0.7)",
     backgroundColor: palette.primary,
   },
   pickCheckboxText: {
@@ -664,12 +864,12 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontFamily: fonts.body,
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 12,
   },
   modalActions: {
     marginTop: 10,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   modalGhost: {
@@ -677,7 +877,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: palette.borderSoft,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalGhostText: {
@@ -688,7 +888,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: palette.primary,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 10,
   },
   modalPrimaryText: {

@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AudioQuality, IOSOutputFormat, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { predictApnea, getApiErrorMessage } from '../services/api';
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AudioQuality,
+  IOSOutputFormat,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
+import { predictApnea, getApiErrorMessage } from "../services/api";
 
 interface ApneaResult {
-  nivel: 'NORMAL' | 'ALERTA' | 'CRITICO';
+  nivel: "NORMAL" | "ALERTA" | "CRITICO";
   interpretacion: string;
   probabilidad: number;
   detalle: {
@@ -41,13 +47,13 @@ interface UseApneaDetectionReturn {
 
 const RECORDING_OPTIONS = {
   isMeteringEnabled: false,
-  extension: '.m4a',
+  extension: ".m4a",
   sampleRate: 16000,
   numberOfChannels: 1,
   bitRate: 64000,
   android: {
-    outputFormat: 'mpeg4',
-    audioEncoder: 'aac',
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
   },
   ios: {
     outputFormat: IOSOutputFormat.MPEG4AAC,
@@ -57,7 +63,7 @@ const RECORDING_OPTIONS = {
     linearPCMIsFloat: false,
   },
   web: {
-    mimeType: 'audio/webm',
+    mimeType: "audio/webm",
     bitsPerSecond: 64000,
   },
 } as const;
@@ -65,14 +71,14 @@ const RECORDING_OPTIONS = {
 const SEGMENT_DURATION_MS = 30000;
 
 export function useApneaDetection({
-  modo = 'screening',
-  perfil = 'general',
+  modo = "screening",
+  perfil = "general",
   autoStart = false,
 }: UseApneaDetectionOptions = {}): UseApneaDetectionReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ApneaResult | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [elapsedMs, setElapsedMs] = useState(0);
 
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
@@ -91,12 +97,12 @@ export function useApneaDetection({
 
   const startRecording = useCallback(async () => {
     try {
-      setError('');
+      setError("");
       setIsRecording(true);
 
       const permission = await requestRecordingPermissionsAsync();
-      if (permission.status !== 'granted') {
-        throw new Error('Permiso de micrófono denegado');
+      if (permission.status !== "granted") {
+        throw new Error("Permiso de micrófono denegado");
       }
 
       await setAudioModeAsync({
@@ -120,16 +126,18 @@ export function useApneaDetection({
     } catch (err) {
       if (mountedRef.current) {
         setIsRecording(false);
-        setError(getApiErrorMessage(err, 'No fue posible iniciar la grabación'));
+        setError(
+          getApiErrorMessage(err, "No fue posible iniciar la grabación"),
+        );
       }
     }
   }, [clearTimer]);
 
   const stopAndPredict = useCallback(
-    async (spo2Values: number[] = [95, 94, 93, 91]): Promise<ApneaResult | undefined> => {
+    async (spo2Values: number[] = []): Promise<ApneaResult | undefined> => {
       try {
         if (!recordingRef.current) {
-          throw new Error('No hay grabación activa');
+          throw new Error("No hay grabación activa");
         }
 
         clearTimer();
@@ -139,20 +147,20 @@ export function useApneaDetection({
         recordingRef.current = null;
 
         if (!uri) {
-          throw new Error('No se pudo obtener la grabación');
+          throw new Error("No se pudo obtener la grabación");
         }
 
         setIsProcessing(true);
 
         const audioFile = {
           uri,
-          type: 'audio/mp4',
-          name: 'audio.m4a',
+          type: "audio/mp4",
+          name: "audio.m4a",
         };
 
         const spo2Str = spo2Values
-          .map((val) => (typeof val === 'number' ? val.toString() : val))
-          .join(',');
+          .map((val) => (typeof val === "number" ? val.toString() : val))
+          .join(",");
 
         const prediction = await predictApnea({
           audioFile,
@@ -163,12 +171,15 @@ export function useApneaDetection({
 
         if (mountedRef.current) {
           setResult(prediction);
-          setError('');
+          setError("");
         }
 
         return prediction;
       } catch (err) {
-        const errorMsg = getApiErrorMessage(err, 'Error al procesar la grabación');
+        const errorMsg = getApiErrorMessage(
+          err,
+          "Error al procesar la grabación",
+        );
         if (mountedRef.current) {
           setError(errorMsg);
           setResult(null);
@@ -217,31 +228,34 @@ export function useApneaDetection({
       }
     } catch (err) {
       if (mountedRef.current) {
-        setError(getApiErrorMessage(err, 'Error al cancelar la grabación'));
+        setError(getApiErrorMessage(err, "Error al cancelar la grabación"));
       }
     }
   }, [clearTimer]);
 
   const clearResult = useCallback(() => {
     setResult(null);
-    setError('');
+    setError("");
   }, []);
 
   const levelColor = useCallback((): string => {
-    if (!result) return '#999999';
+    if (!result) return "#999999";
     switch (result.nivel) {
-      case 'NORMAL':
-        return '#10B981';
-      case 'ALERTA':
-        return '#F59E0B';
-      case 'CRITICO':
-        return '#EF4444';
+      case "NORMAL":
+        return "#10B981";
+      case "ALERTA":
+        return "#F59E0B";
+      case "CRITICO":
+        return "#EF4444";
       default:
-        return '#999999';
+        return "#999999";
     }
   }, [result]);
 
-  const progressPercent = Math.min(100, (elapsedMs / SEGMENT_DURATION_MS) * 100);
+  const progressPercent = Math.min(
+    100,
+    (elapsedMs / SEGMENT_DURATION_MS) * 100,
+  );
 
   useEffect(() => {
     mountedRef.current = true;
