@@ -2,6 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NavigationProp } from "@react-navigation/native";
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as Application from "expo-application";
+import {
+  AccessTokenRequest,
+  loadAsync,
+  makeRedirectUri,
+  ResponseType,
+} from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import React, { useContext, useState } from "react";
@@ -34,6 +41,17 @@ const GOOGLE_ANDROID_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || "";
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || "";
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "";
+
+const GOOGLE_CLIENT_ID =
+  Platform.select({
+    ios: GOOGLE_IOS_CLIENT_ID,
+    android: GOOGLE_ANDROID_CLIENT_ID,
+    default: GOOGLE_WEB_CLIENT_ID,
+  }) || "";
+
+const GOOGLE_REDIRECT_URI = makeRedirectUri({
+  native: `${Application.applicationId}:/oauthredirect`,
+});
 
 type AuthMode = "login" | "register";
 type AuthStackParamList = {
@@ -68,12 +86,6 @@ export default function AuthScreen() {
     null,
   );
   const [error, setError] = useState("");
-
-  const [googleRequest, , googlePromptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
-    iosClientId: GOOGLE_IOS_CLIENT_ID || undefined,
-    webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
-  });
 
   const isRegisterMode = mode === "register";
   const legalPending =
@@ -140,13 +152,27 @@ export default function AuthScreen() {
       let idToken = "";
 
       if (provider === "google") {
-        if (!googleRequest) {
+        if (!GOOGLE_CLIENT_ID) {
           setError(
-            "Faltan los clientes de Google. Configura EXPO_PUBLIC_GOOGLE_* en tu .env.",
+            "Faltan los clientes de Google. Configura EXPO_PUBLIC_GOOGLE_* en tu .env y reconstruye la app.",
           );
           return;
         }
-        const result = await googlePromptAsync();
+        const request = await loadAsync(
+          {
+            clientId: GOOGLE_CLIENT_ID,
+            responseType:
+              Platform.OS === "web" ? ResponseType.IdToken : ResponseType.Code,
+            scopes: [
+              "openid",
+              "https://www.googleapis.com/auth/userinfo.profile",
+              "https://www.googleapis.com/auth/userinfo.email",
+            ],
+            redirectUri: GOOGLE_REDIRECT_URI,
+          },
+          Google.discovery,
+        );
+        const result = await request.promptAsync(Google.discovery);
         if (result?.type !== "success") {
           if (result?.type === "error" && result.error) {
             setError(
@@ -155,7 +181,25 @@ export default function AuthScreen() {
           }
           return;
         }
-        idToken = result.authentication?.idToken || "";
+        if (result.authentication) {
+          idToken = result.authentication.idToken || "";
+        } else if (result.params?.code) {
+          const exchange = new AccessTokenRequest({
+            clientId: GOOGLE_CLIENT_ID,
+            redirectUri: GOOGLE_REDIRECT_URI,
+            scopes: [
+              "openid",
+              "https://www.googleapis.com/auth/userinfo.profile",
+              "https://www.googleapis.com/auth/userinfo.email",
+            ],
+            code: result.params.code,
+            extraParams: {
+              code_verifier: request.codeVerifier || "",
+            },
+          });
+          const exchanged = await exchange.performAsync(Google.discovery);
+          idToken = exchanged.idToken || "";
+        }
         if (!idToken) {
           setError("Google no devolvió un token válido.");
           return;
